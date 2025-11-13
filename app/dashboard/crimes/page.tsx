@@ -76,7 +76,7 @@ export default function CrimesPage() {
     }
 
     console.log("[v0] Initial data fetch triggered")
-    fetchData(apiKey)
+    loadFromStoredData(apiKey)
 
     loadHistoricalCrimes()
 
@@ -139,9 +139,85 @@ export default function CrimesPage() {
     }
   }
 
-  const fetchData = async (apiKey: string) => {
-    console.log("[v0] fetchData called, isLoading:", isLoading, "refreshing:", refreshing)
+  const loadFromStoredData = (apiKey: string) => {
+    console.log("[v0] Loading from stored data")
     setIsLoading(true)
+
+    try {
+      // Load items from cache
+      const cachedItems = localStorage.getItem("tornItems")
+      if (cachedItems) {
+        try {
+          const itemsData = JSON.parse(cachedItems)
+          const itemsMap = new Map<number, TornItem>()
+          Object.entries(itemsData).forEach(([id, item]) => {
+            itemsMap.set(Number.parseInt(id), item as TornItem)
+          })
+          setItems(itemsMap)
+          console.log(`[v0] Loaded ${itemsMap.size} items from cache`)
+        } catch (e) {
+          console.error("[v0] Failed to parse cached items:", e)
+        }
+      }
+
+      // Load members from cache
+      const cachedMembers = localStorage.getItem("factionMembers")
+      if (cachedMembers) {
+        try {
+          const membersData = JSON.parse(cachedMembers)
+          setMembers(Object.values(membersData.members || {}))
+          console.log(`[v0] Loaded ${Object.keys(membersData.members || {}).length} members from cache`)
+        } catch (e) {
+          console.error("[v0] Failed to parse cached members:", e)
+        }
+      }
+
+      // Load historical crimes
+      const cached = localStorage.getItem("factionHistoricalCrimes")
+      let loadedHistoricalCrimes: Crime[] = []
+      if (cached) {
+        try {
+          loadedHistoricalCrimes = JSON.parse(cached)
+          console.log(`[v0] Loaded ${loadedHistoricalCrimes.length} historical crimes from localStorage`)
+        } catch (e) {
+          console.error("[v0] Failed to parse historical crimes:", e)
+        }
+      }
+
+      // If we have stored data, use it immediately
+      if (loadedHistoricalCrimes.length > 0) {
+        setCrimes(loadedHistoricalCrimes)
+        console.log(`[v0] Using ${loadedHistoricalCrimes.length} stored crimes`)
+        setIsLoading(false)
+
+        toast({
+          title: "Success",
+          description: `Loaded ${loadedHistoricalCrimes.length} crimes from storage`,
+        })
+
+        // Then fetch fresh data in the background
+        setTimeout(() => {
+          console.log("[v0] Background refresh started")
+          fetchData(apiKey, true)
+        }, 1000)
+      } else {
+        // No stored data, fetch from API
+        console.log("[v0] No stored data, fetching from API")
+        fetchData(apiKey, false)
+      }
+    } catch (err) {
+      console.error("[v0] Error loading from stored data:", err)
+      // Fallback to API fetch
+      fetchData(apiKey, false)
+    }
+  }
+
+  const fetchData = async (apiKey: string, isBackgroundRefresh = false) => {
+    console.log("[v0] fetchData called, isBackgroundRefresh:", isBackgroundRefresh)
+
+    if (!isBackgroundRefresh) {
+      setIsLoading(true)
+    }
 
     try {
       const itemsData = await fetchAndCacheItems(apiKey)
@@ -174,20 +250,35 @@ export default function CrimesPage() {
       }
 
       const currentCrimes = Object.values(crimesData.crimes || {})
+
+      const cached = localStorage.getItem("factionHistoricalCrimes")
+      let loadedHistoricalCrimes: Crime[] = []
+      if (cached) {
+        try {
+          loadedHistoricalCrimes = JSON.parse(cached)
+          console.log(`[v0] fetchData: Loaded ${loadedHistoricalCrimes.length} historical crimes from localStorage`)
+        } catch (e) {
+          console.error("[v0] fetchData: Failed to parse historical crimes:", e)
+        }
+      }
+
       const crimeMap = new Map<number, Crime>()
 
-      historicalCrimes.forEach((crime) => {
+      loadedHistoricalCrimes.forEach((crime) => {
         crimeMap.set(crime.id, crime)
       })
+      console.log(`[v0] fetchData: Added ${loadedHistoricalCrimes.length} historical crimes to map`)
 
       currentCrimes.forEach((crime) => {
         crimeMap.set(crime.id, crime)
       })
+      console.log(`[v0] fetchData: Added ${currentCrimes.length} current crimes to map`)
 
       const allCrimes = Array.from(crimeMap.values())
+      console.log(`[v0] fetchData: Final crime count = ${allCrimes.length}`)
       setCrimes(allCrimes)
 
-      if (!refreshing) {
+      if (!refreshing && !isBackgroundRefresh) {
         toast({
           title: "Success",
           description: `Crimes data loaded successfully (${allCrimes.length} total including historical)`,
@@ -195,13 +286,17 @@ export default function CrimesPage() {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load data"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
+      if (!isBackgroundRefresh) {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
     } finally {
-      setIsLoading(false)
+      if (!isBackgroundRefresh) {
+        setIsLoading(false)
+      }
     }
   }
 

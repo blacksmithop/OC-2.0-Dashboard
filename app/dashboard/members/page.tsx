@@ -34,6 +34,12 @@ interface Crime {
   }>
 }
 
+interface MemberFilters {
+  crimeStatus: string
+  activityRange: [number, number]
+  levelRange: [number, number]
+}
+
 export default function MembersPage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -42,11 +48,11 @@ export default function MembersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
-
-  const [memberFilters, setMemberFilters] = useState({
+  const [historicalCrimes, setHistoricalCrimes] = useState<Crime[]>([])
+  const [memberFilters, setMemberFilters] = useState<MemberFilters>({
     crimeStatus: "all",
-    activityRange: [0, 7] as [number, number],
-    levelRange: [1, 100] as [number, number],
+    activityRange: [0, 7],
+    levelRange: [1, 100],
   })
 
   useEffect(() => {
@@ -55,6 +61,8 @@ export default function MembersPage() {
       router.push("/")
       return
     }
+
+    loadHistoricalCrimes()
 
     fetchData(apiKey)
   }, [router])
@@ -109,12 +117,24 @@ export default function MembersPage() {
         throw new Error(crimesData.error.error || "Failed to fetch crimes")
       }
 
-      setCrimes(Object.values(crimesData.crimes || {}))
+      const currentCrimes = Object.values(crimesData.crimes || {})
+      const crimeMap = new Map<number, Crime>()
+
+      historicalCrimes.forEach((crime) => {
+        crimeMap.set(crime.id, crime)
+      })
+
+      currentCrimes.forEach((crime) => {
+        crimeMap.set(crime.id, crime)
+      })
+
+      const allCrimes = Array.from(crimeMap.values())
+      setCrimes(allCrimes)
 
       if (!refreshing) {
         toast({
           title: "Success",
-          description: "Members data loaded successfully",
+          description: `Members data loaded successfully (${allCrimes.length} total crimes)`,
         })
       }
     } catch (err) {
@@ -171,6 +191,19 @@ export default function MembersPage() {
         title: "Success",
         description: `Filtering crimes for ${member.name}`,
       })
+    }
+  }
+
+  const loadHistoricalCrimes = () => {
+    const cached = localStorage.getItem("factionHistoricalCrimes")
+    if (cached) {
+      try {
+        const data = JSON.parse(cached)
+        setHistoricalCrimes(data)
+        console.log(`[v0] Loaded ${data.length} historical crimes for members page`)
+      } catch (e) {
+        console.error("[v0] Failed to parse historical crimes:", e)
+      }
     }
   }
 
