@@ -3,10 +3,11 @@
 import type React from "react"
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react"
-import { ChevronDown, ArrowUpDown, RefreshCw, Microscope } from 'lucide-react'
+import { ChevronDown, ArrowUpDown, RefreshCw, Microscope, AlertTriangle } from 'lucide-react'
 import ItemModal from "./item-modal"
 import { canReloadIndividualCrimes } from "@/lib/api-scopes"
 import { getSimulatorUrl, hasSimulator } from "@/lib/crime-simulator-urls"
+import { getRoleWeights, getRoleWeight, getWeightColor, getWeightBgColor, shouldAlertLowCPR } from "@/lib/role-weights"
 
 interface Slot {
   position: string
@@ -91,6 +92,7 @@ export default function CrimesList({
   const [canReloadCrimes, setCanReloadCrimes] = useState(true)
   const observerRef = useRef<{ [key: string]: IntersectionObserver | null }>({})
   const loadMoreRef = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  const [roleWeights, setRoleWeights] = useState<Awaited<ReturnType<typeof getRoleWeights>> | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -101,6 +103,10 @@ export default function CrimesList({
 
   useEffect(() => {
     setCanReloadCrimes(canReloadIndividualCrimes())
+  }, [])
+
+  useEffect(() => {
+    getRoleWeights().then(setRoleWeights)
   }, [])
 
   const memberMap = useMemo(() => {
@@ -436,6 +442,7 @@ export default function CrimesList({
                   const canReload = !["Successful", "Failed", "Expired"].includes(crime.status)
                   const simulatorUrl = getSimulatorUrl(crime.name)
                   const showSimulator = ["Recruiting", "Planning"].includes(crime.status)
+                  const showRoleWeights = ["Recruiting", "Planning"].includes(crime.status) && roleWeights
 
                   return (
                     <div
@@ -663,17 +670,37 @@ export default function CrimesList({
                               slot.checkpoint_pass_rate !== undefined &&
                               slot.checkpoint_pass_rate < minPassRate
 
+                            const roleWeight = showRoleWeights ? getRoleWeight(crime.name, slot.position) : null
+                            const isHighRiskRole = roleWeight && slot.user && slot.checkpoint_pass_rate !== undefined 
+                              ? shouldAlertLowCPR(slot.checkpoint_pass_rate, roleWeight, minPassRate)
+                              : false
+
                             return (
                               <div
                                 key={idx}
-                                className="text-xs px-2 py-1.5 rounded bg-background border border-border/30 hover:border-primary/50 transition-colors"
+                                className={`text-xs px-2 py-1.5 rounded border transition-colors ${
+                                  isHighRiskRole 
+                                    ? "bg-red-500/10 border-red-500/40 hover:border-red-500/60"
+                                    : "bg-background border-border/30 hover:border-primary/50"
+                                }`}
                               >
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2 min-w-0 flex-1">
                                     <span className="font-bold text-muted-foreground shrink-0">{slot.position}:</span>
+                                    {roleWeight !== null && (
+                                      <span
+                                        className={`px-1.5 py-0.5 rounded border text-xs font-bold shrink-0 ${getWeightBgColor(roleWeight)} ${getWeightColor(roleWeight)}`}
+                                        title="Role Weight"
+                                      >
+                                        {roleWeight.toFixed(1)}%
+                                      </span>
+                                    )}
                                     {slot.user ? (
                                       <>
                                         {isAtRisk && <span className="text-orange-400">⚠️</span>}
+                                        {isHighRiskRole && (
+                                          <AlertTriangle size={14} className="text-red-400 shrink-0" title="High weight role with low CPR!" />
+                                        )}
                                         <a
                                           href={`https://www.torn.com/profiles.php?XID=${slot.user.id}`}
                                           target="_blank"

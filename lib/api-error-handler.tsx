@@ -1,5 +1,6 @@
 import { toast } from "@/hooks/use-toast"
 import { buildApiKeyUrl, getSelectedScopes } from "@/lib/api-scopes"
+import { handleFullLogout } from "@/lib/logout-handler"
 
 export interface ApiErrorResponse {
   error: {
@@ -77,6 +78,28 @@ export async function handleApiError(
     const scope = getEndpointScope(endpoint)
     const scopeInfo = SCOPE_REQUIREMENTS[scope]
 
+    if (errorData.error?.code === 2 && errorData.error.error === "Incorrect key") {
+      console.error("[v0] API key has been revoked - logging out")
+      
+      handleFullLogout()
+      
+      if (showToast) {
+        toast({
+          title: "API Key Revoked",
+          description: "Your API key has been deleted. Please log in again with a valid key.",
+          variant: "destructive",
+          duration: 8000,
+        })
+      }
+
+      // Redirect to login page
+      if (typeof window !== "undefined") {
+        window.location.href = "/"
+      }
+
+      throw new Error("API key has been revoked")
+    }
+
     // Error code 16: Access level not high enough
     if (errorData.error?.code === 16) {
       const errorMessage = `API key access level too low for "${scope}" scope`
@@ -140,10 +163,8 @@ export async function handleApiError(
       throw new Error(`API key does not have sufficient access level for "${scope}" scope`)
     }
 
-    // Error code 2: Incorrect API key or access denied
     if (errorData.error?.code === 2) {
       const errorMessage = `API key does not have access to "${scope}" scope`
-
       const selectedScopes = getSelectedScopes()
       const apiKeyUrl = buildApiKeyUrl(selectedScopes)
 
