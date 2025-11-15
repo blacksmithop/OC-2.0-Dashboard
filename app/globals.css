@@ -160,4 +160,36 @@
   .scrollbar-track-card {
     scrollbar-color: rgb(var(--border)) rgb(var(--card));
   }
+
+  /* Adding animated border for open recruiting slots */
+  @keyframes border-pulse-purple {
+    0%, 100% {
+      border-color: rgb(168 85 247 / 0.4);
+      box-shadow: 0 0 0 0 rgb(168 85 247 / 0.4);
+    }
+    50% {
+      border-color: rgb(168 85 247 / 0.8);
+      box-shadow: 0 0 8px 2px rgb(168 85 247 / 0.3);
+    }
+  }
+
+  .animate-border-pulse-purple {
+    animation: border-pulse-purple 2s ease-in-out infinite;
+  }
+
+  /* Adding animated border for missing items in planning */
+  @keyframes border-pulse-orange {
+    0%, 100% {
+      border-color: rgb(251 146 60 / 0.4);
+      box-shadow: 0 0 0 0 rgb(251 146 60 / 0.4);
+    }
+    50% {
+      border-color: rgb(251 146 60 / 0.8);
+      box-shadow: 0 0 8px 2px rgb(251 146 60 / 0.3);
+    }
+  }
+
+  .animate-border-pulse-orange {
+    animation: border-pulse-orange 2s ease-in-out infinite;
+  }
 }
