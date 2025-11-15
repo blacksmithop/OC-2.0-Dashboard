@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from "@/hooks/use-toast"
 import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw } from 'lucide-react'
@@ -67,11 +67,32 @@ export default function CrimesPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [filteredMemberId, setFilteredMemberId] = useState<number | null>(null)
-  const [minPassRate, setMinPassRate] = useState(65)
+  const [minPassRate, setMinPassRate] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('minPassRate')
+      return saved ? Number.parseInt(saved) : 65
+    }
+    return 65
+  })
+  const [dateFilter, setDateFilter] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('crimesDateFilter')
+      return saved ? Number.parseInt(saved) : 0 // 0 means "All"
+    }
+    return 0
+  })
   const [historicalCrimes, setHistoricalCrimes] = useState<Crime[]>([])
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null)
   const historicalCrimesLengthRef = useRef(0)
+
+  useEffect(() => {
+    localStorage.setItem('minPassRate', minPassRate.toString())
+  }, [minPassRate])
+
+  useEffect(() => {
+    localStorage.setItem('crimesDateFilter', dateFilter.toString())
+  }, [dateFilter])
 
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
@@ -399,24 +420,39 @@ export default function CrimesPage() {
     ? crimes.filter((crime) => crime.slots.some((slot) => slot.user?.id === filteredMemberId))
     : crimes
 
+  const dateFilteredCrimes = useMemo(() => {
+    if (dateFilter === 0) return filteredCrimes // All crimes
+    
+    const now = Date.now() / 1000
+    const daysInSeconds = dateFilter * 24 * 60 * 60
+    const cutoffTime = now - daysInSeconds
+    
+    return filteredCrimes.filter((crime) => {
+      const timestamp = crime.executed_at || crime.created_at || 0
+      return timestamp >= cutoffTime
+    })
+  }, [filteredCrimes, dateFilter])
+
   const handleMemberFilterChange = (memberId: number | null) => {
+    console.log("[v0] Member filter changed to:", memberId)
     setSelectedMemberId(memberId)
+    setFilteredMemberId(memberId)
+    
     if (memberId) {
-      setFilteredMemberId(memberId)
       router.push(`/dashboard/crimes?member=${memberId}`)
     } else {
-      setFilteredMemberId(null)
       router.push("/dashboard/crimes")
     }
   }
 
   const handleClearFilter = () => {
+    console.log("[v0] Clearing filter")
     setFilteredMemberId(null)
     setSelectedMemberId(null)
-    router.replace("/dashboard/crimes")
+    router.push("/dashboard/crimes")
     toast({
-      title: "Success",
-      description: "Showing all crimes",
+      title: "Filter cleared",
+      description: "Showing all members",
     })
   }
 
@@ -503,8 +539,15 @@ export default function CrimesPage() {
         <div className="max-w-5xl mx-auto">
           <div className="mb-4 flex items-center gap-2">
             <select
-              value={selectedMemberId || ""}
-              onChange={(e) => handleMemberFilterChange(e.target.value ? Number.parseInt(e.target.value) : null)}
+              value={selectedMemberId ?? ""}
+              onChange={(e) => {
+                const value = e.target.value
+                if (value === "") {
+                  handleMemberFilterChange(null)
+                } else {
+                  handleMemberFilterChange(Number.parseInt(value))
+                }
+              }}
               className="px-3 py-2 bg-card border-2 border-border rounded-lg text-foreground focus:border-primary focus:outline-none"
             >
               <option value="">All Members</option>
@@ -516,6 +559,17 @@ export default function CrimesPage() {
                     {member.name}
                   </option>
                 ))}
+            </select>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(Number.parseInt(e.target.value))}
+              className="px-3 py-2 bg-card border-2 border-border rounded-lg text-foreground focus:border-primary focus:outline-none"
+            >
+              <option value={0}>All Time</option>
+              <option value={7}>Last 7 Days</option>
+              <option value={14}>Last 14 Days</option>
+              <option value={30}>Last 30 Days</option>
+              <option value={90}>Last 90 Days</option>
             </select>
           </div>
 
@@ -532,29 +586,19 @@ export default function CrimesPage() {
               </button>
             </div>
           )}
-          {filteredCrimes.length > 0 && (
-            <CrimeSummary
-              crimes={filteredCrimes}
-              items={items}
-              minPassRate={minPassRate}
-              onMinPassRateChange={setMinPassRate}
-            />
-          )}
-          {filteredCrimes.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                {filteredMemberId ? "This member is not participating in any crimes" : "No crimes available"}
-              </p>
-            </div>
-          ) : (
-            <CrimesList
-              crimes={filteredCrimes}
-              members={members}
-              items={items}
-              onCrimeReload={handleReloadCrime}
-              minPassRate={minPassRate}
-            />
-          )}
+          <CrimeSummary
+            crimes={dateFilteredCrimes}
+            items={items}
+            minPassRate={minPassRate}
+            onMinPassRateChange={setMinPassRate}
+          />
+          <CrimesList
+            crimes={dateFilteredCrimes}
+            members={members}
+            items={items}
+            onCrimeReload={handleReloadCrime}
+            minPassRate={minPassRate}
+          />
         </div>
       </main>
 
