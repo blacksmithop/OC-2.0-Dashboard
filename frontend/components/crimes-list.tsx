@@ -10,64 +10,14 @@ import { getSimulatorUrl, hasSimulator } from "@/lib/crime-simulator-urls"
 import { getRoleWeights, getRoleWeight, getWeightColor, getWeightBgColor, shouldAlertLowCPR } from "@/lib/role-weights"
 import { getSuccessPrediction, SUPPORTED_SCENARIOS, type SuccessPrediction } from "@/lib/success-prediction"
 import { getItemMarketPrice } from "@/lib/marketplace-price"
-
-interface Slot {
-  position: string
-  position_id: string
-  user: {
-    id: number
-    name?: string
-    outcome?: string
-    item_outcome?: { owned_by: string; item_id: number; item_uid: number; outcome: string }
-  } | null
-  checkpoint_pass_rate?: number
-  item_requirement?: {
-    id: number
-    is_reusable: boolean
-    is_available: boolean
-  }
-}
-
-interface Rewards {
-  money: number
-  items: Array<{ id: number; quantity: number }>
-  respect: number
-  scope: number
-  payout?: {
-    type: string
-    percentage: number
-    paid_by: number
-    paid_at: number
-  }
-}
-
-interface Crime {
-  id: number
-  name: string
-  difficulty: number
-  participants: number
-  status: string
-  planned_by: { id: number; name: string }
-  initiated_by: { id: number; name: string } | null
-  slots: Slot[]
-  pass_rate?: number
-  progress?: number
-  item_requirement?: {
-    id: number
-    is_reusable: boolean
-    is_available: boolean
-  }
-  created_at?: number
-  planning_at?: number
-  executed_at?: number
-  ready_at?: number
-  expired_at?: number
-  rewards?: Rewards
-}
+import type { Crime, Slot, Rewards, Member } from "@/types/crime"
+import { formatDate, formatTime, formatDateTime } from "@/lib/crime-formatters"
+import { getDifficultyColor, getPassRateColor, getStatusColor, getHeaderColor, getPositionPassRateColor } from "@/lib/crime-colors"
+import { CRIME_STATUSES } from "@/constants/crime-statuses"
 
 interface CrimesListProps {
   crimes: Crime[]
-  members: Array<{ id: number; name: string }>
+  members: Member[]
   items: Map<number, any>
   onMemberClick?: (memberId: number) => void
   onCrimeReload?: (crimeId: number) => Promise<Crime | null>
@@ -85,7 +35,7 @@ export default function CrimesList({
   factionId,
 }: CrimesListProps) {
   const [collapsedStatus, setCollapsedStatus] = useState<Set<string>>(
-    new Set(["Recruiting", "Planning", "Ongoing", "Successful", "Failed", "Expired"]),
+    new Set(CRIME_STATUSES),
   )
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [sortBy, setSortBy] = useState<{ [key: string]: "difficulty" | "filled" | "timeLeft" | "none" }>({})
@@ -179,23 +129,13 @@ export default function CrimesList({
   }
 
   const crimesGrouped = useMemo(() => {
-    const groups: { [key: string]: Crime[] } = {
-      Recruiting: [],
-      Planning: [],
-      Ongoing: [],
-      Successful: [],
-      Failed: [],
-      Expired: [],
-    }
-
-    const originalCounts: { [key: string]: number } = {
-      Recruiting: 0,
-      Planning: 0,
-      Ongoing: 0,
-      Successful: 0,
-      Failed: 0,
-      Expired: 0,
-    }
+    const groups: { [key: string]: Crime[] } = {}
+    const originalCounts: { [key: string]: number } = {}
+    
+    CRIME_STATUSES.forEach(status => {
+      groups[status] = []
+      originalCounts[status] = 0
+    })
 
     crimes.forEach((crime) => {
       const status = crime.status === "Failure" ? "Failed" : crime.status
@@ -278,62 +218,6 @@ export default function CrimesList({
     }
   }, [])
 
-  const getDifficultyColor = (difficulty: number) => {
-    if (difficulty <= 2) return "text-green-400"
-    if (difficulty <= 5) return "text-yellow-400"
-    if (difficulty <= 8) return "text-orange-400"
-    return "text-red-400"
-  }
-
-  const getPassRateColor = (passRate: number) => {
-    if (passRate < 60) return "bg-red-500/20 text-red-400 border-red-500/30"
-    if (passRate < 70) return "bg-orange-500/20 text-orange-400 border-orange-500/30"
-    if (passRate < 80) return "bg-green-500/20 text-green-400 border-green-500/30"
-    return "bg-green-500/30 text-green-300 border-green-500/40"
-  }
-
-  const getStatusColor = (status: string) => {
-    const colors: { [key: string]: string } = {
-      Planning: "bg-blue-500/15 text-blue-400 border-blue-500/40",
-      Recruiting: "bg-purple-500/15 text-purple-400 border-purple-500/40",
-      Ongoing: "bg-yellow-500/15 text-yellow-400 border-yellow-500/40",
-      Successful: "bg-green-500/15 text-green-400 border-green-500/40",
-      Failed: "bg-red-500/15 text-red-400 border-red-500/40",
-      Expired: "bg-gray-500/15 text-gray-400 border-gray-500/40",
-    }
-    return colors[status] || "bg-gray-500/15 text-gray-400 border-gray-500/40"
-  }
-
-  const getHeaderColor = (status: string) => {
-    const colors: { [key: string]: string } = {
-      Planning: "bg-blue-500/20 text-blue-300 border-blue-500/40",
-      Recruiting: "bg-purple-500/20 text-purple-300 border-purple-500/40",
-      Ongoing: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40",
-      Successful: "bg-green-500/20 text-green-300 border-green-500/40",
-      Failed: "bg-red-500/20 text-red-300 border-red-500/40",
-      Expired: "bg-gray-500/20 text-gray-300 border-gray-500/40",
-    }
-    return colors[status] || "bg-gray-500/20 text-gray-300 border-gray-500/40"
-  }
-
-  const formatDate = (timestamp?: number) => {
-    if (!timestamp) return null
-    const date = new Date(timestamp * 1000)
-    const day = String(date.getDate()).padStart(2, "0")
-    const month = String(date.getMonth() + 1).padStart(2, "0")
-    const year = String(date.getFullYear()).slice(-2)
-    return `${day}-${month}-${year}`
-  }
-
-  const formatTime = (timestamp?: number) => {
-    if (!timestamp) return null
-    const date = new Date(timestamp * 1000)
-    const hours = String(date.getHours()).padStart(2, "0")
-    const minutes = String(date.getMinutes()).padStart(2, "0")
-    const seconds = String(date.getSeconds()).padStart(2, "0")
-    return `${hours}:${minutes}:${seconds}`
-  }
-
   const getTimeRemaining = (expiredAt?: number) => {
     if (!expiredAt) return null
     const remaining = expiredAt - currentTime
@@ -351,14 +235,6 @@ export default function CrimesList({
     parts.push(`${seconds}s`)
 
     return parts.join(" ") + " remaining"
-  }
-
-  const getPositionPassRateColor = (passRate?: number) => {
-    if (!passRate) return "bg-gray-500/20 text-gray-400 border-gray-500/30"
-    if (passRate < 60) return "bg-red-500/20 text-red-400 border-red-500/30"
-    if (passRate < 70) return "bg-orange-500/20 text-orange-400 border-orange-500/30"
-    if (passRate < 80) return "bg-green-500/20 text-green-400 border-green-500/30"
-    return "bg-green-500/30 text-green-300 border-green-500/40"
   }
 
   const copyToClipboard = (id: number) => {
@@ -379,17 +255,6 @@ export default function CrimesList({
         return next
       })
     }
-  }
-
-  const formatDateTime = (timestamp?: number) => {
-    if (!timestamp) return null
-    const date = new Date(timestamp * 1000)
-    const day = String(date.getDate()).padStart(2, "0")
-    const month = String(date.getMonth() + 1).padStart(2, "0")
-    const year = String(date.getFullYear()).slice(-2)
-    const hours = String(date.getHours()).padStart(2, "0")
-    const minutes = String(date.getMinutes()).padStart(2, "0")
-    return `${day}-${month}-${year} ${hours}:${minutes}`
   }
 
   const renderCrimeGroup = (status: string, crimes: Crime[], originalCount: number) => {

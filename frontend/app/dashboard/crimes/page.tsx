@@ -12,63 +12,9 @@ import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
 import { clearAllCache } from "@/lib/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
-
-interface Member {
-  id: number
-  name: string
-  level: number
-  status: {
-    description: string
-    state: string
-    color: string
-  }
-  position: string
-  last_action: {
-    status: string
-    relative: string
-    timestamp: number
-  }
-  days_in_faction: number
-  is_in_oc: boolean
-}
-
-interface Crime {
-  id: number
-  name: string
-  difficulty: number
-  status: string
-  participants: number
-  planned_by: { id: number; name: string }
-  initiated_by: { id: number; name: string } | null
-  pass_rate?: number
-  progress?: number
-  item_requirement?: {
-    id: number
-    is_reusable: boolean
-    is_available: boolean
-  }
-  created_at?: number
-  planning_at?: number
-  executed_at?: number
-  ready_at?: number
-  expired_at?: number
-  slots: Array<{
-    position: string
-    position_id: string
-    user: { id: number; name?: string } | null
-    checkpoint_pass_rate?: number
-    item_requirement?: {
-      id: number
-      is_reusable: boolean
-      is_available: boolean
-    }
-  }>
-  rewards?: {
-    money: number
-    items: Array<{ id: number; quantity: number }>
-    respect: number
-  }
-}
+import type { Crime, Member } from "@/types/crime"
+import { DATE_FILTER_OPTIONS } from "@/constants/date-filters"
+import { filterCrimesByDateRange } from "@/lib/crime-filters"
 
 export default function CrimesPage() {
   const router = useRouter()
@@ -92,7 +38,7 @@ export default function CrimesPage() {
   const [dateFilter, setDateFilter] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('crimesDateFilter')
-      return saved ? Number.parseInt(saved) : 0 // 0 means "All"
+      return saved ? Number.parseInt(saved) : 0
     }
     return 0
   })
@@ -460,16 +406,7 @@ export default function CrimesPage() {
     : crimes
 
   const dateFilteredCrimes = useMemo(() => {
-    if (dateFilter === 0) return filteredCrimes // All crimes
-    
-    const now = Date.now() / 1000
-    const daysInSeconds = dateFilter * 24 * 60 * 60
-    const cutoffTime = now - daysInSeconds
-    
-    return filteredCrimes.filter((crime) => {
-      const timestamp = crime.executed_at || crime.created_at || 0
-      return timestamp >= cutoffTime
-    })
+    return filterCrimesByDateRange(filteredCrimes, dateFilter)
   }, [filteredCrimes, dateFilter])
 
   const handleMemberFilterChange = (memberId: number | null) => {
@@ -640,11 +577,9 @@ export default function CrimesPage() {
               onChange={(e) => setDateFilter(Number.parseInt(e.target.value))}
               className="px-3 py-2 bg-card border-2 border-border rounded-lg text-foreground focus:border-primary focus:outline-none"
             >
-              <option value={0}>All Time</option>
-              <option value={7}>Last 7 Days</option>
-              <option value={14}>Last 14 Days</option>
-              <option value={30}>Last 30 Days</option>
-              <option value={90}>Last 90 Days</option>
+              {DATE_FILTER_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </div>
 
