@@ -402,54 +402,56 @@ export default function CrimesList({
 
         {isExpanded && (
           <div className="mt-2 space-y-2 animate-in fade-in duration-200">
-            <div className="flex items-center gap-2 px-3 py-2 bg-card rounded-lg border">
-              <span className="text-xs text-foreground font-bold uppercase">Sort:</span>
-              <button
-                onClick={() => handleSort("difficulty")}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
-                  currentSort === "difficulty"
-                    ? "bg-primary text-white border-primary"
-                    : "bg-card text-foreground border-border hover:border-primary"
-                }`}
-              >
-                <ArrowUpDown size={14} />
-                Difficulty
-              </button>
-              <button
-                onClick={() => handleSort("filled")}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
-                  currentSort === "filled"
-                    ? "bg-accent text-white border-accent"
-                    : "bg-card text-foreground border-border hover:border-accent"
-                }`}
-              >
-                <ArrowUpDown size={14} />
-                Filled
-              </button>
-              <button
-                onClick={() => handleSort("timeLeft")}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
-                  currentSort === "timeLeft"
-                    ? "bg-destructive text-white border-destructive"
-                    : "bg-card text-foreground border-border hover:border-destructive"
-                }`}
-              >
-                <ArrowUpDown size={14} />
-                Time
-              </button>
-              <div className="ml-auto">
+            {crimes.length > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card rounded-lg border">
+                <span className="text-xs text-foreground font-bold uppercase">Sort:</span>
                 <button
-                  onClick={toggleAtRiskFilter}
+                  onClick={() => handleSort("difficulty")}
                   className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
-                    isFilteringAtRisk
-                      ? "bg-orange-500 text-white border-orange-500"
-                      : "bg-card text-foreground border-border hover:border-orange-500"
+                    currentSort === "difficulty"
+                      ? "bg-primary text-white border-primary"
+                      : "bg-card text-foreground border-border hover:border-primary"
                   }`}
                 >
-                  ⚠️ Low CPR
+                  <ArrowUpDown size={14} />
+                  Difficulty
                 </button>
+                <button
+                  onClick={() => handleSort("filled")}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
+                    currentSort === "filled"
+                      ? "bg-accent text-white border-accent"
+                      : "bg-card text-foreground border-border hover:border-accent"
+                  }`}
+                >
+                  <ArrowUpDown size={14} />
+                  Filled
+                </button>
+                <button
+                  onClick={() => handleSort("timeLeft")}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
+                    currentSort === "timeLeft"
+                      ? "bg-destructive text-white border-destructive"
+                      : "bg-card text-foreground border-border hover:border-destructive"
+                  }`}
+                >
+                  <ArrowUpDown size={14} />
+                  Time
+                </button>
+                <div className="ml-auto">
+                  <button
+                    onClick={toggleAtRiskFilter}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
+                      isFilteringAtRisk
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-card text-foreground border-border hover:border-orange-500"
+                    }`}
+                  >
+                    ⚠️ Low CPR
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {crimes.length === 0 ? (
               <div className="bg-card border border-border/30 rounded-lg p-6 text-center">
@@ -512,7 +514,7 @@ export default function CrimesList({
                                   if (!simulatorUrl) e.preventDefault()
                                 }}
                                 title={simulatorUrl ? "Open simulator" : "Simulator not available"}
-                                className={`text-xs px-2 py-0.5 rounded border transition-colors flex items-center gap-1 ${
+                                className={`text-xs px-2 py-0.5 rounded border transition-colors ${
                                   simulatorUrl
                                     ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/40 hover:bg-yellow-500/30"
                                     : "bg-gray-500/10 text-gray-500 border-gray-500/30 cursor-not-allowed opacity-50"
@@ -631,96 +633,120 @@ export default function CrimesList({
                         </div>
                       )}
 
-                      {crime.status === "Planning" && crime.progress !== undefined && (
-                        <div className="mb-2">
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">Progress</span>
-                            <span className="font-bold text-foreground">{crime.progress}%</span>
-                          </div>
-                          <div className="w-full bg-background rounded-full h-2 border border-border/50">
-                            <div className="h-full rounded-full bg-blue-500" style={{ width: `${crime.progress}%` }} />
-                          </div>
-                        </div>
-                      )}
-
-                      {crime.item_requirement && (
-                        <div className="text-xs mb-2 px-2 py-1 bg-background rounded border border-border/30 flex items-center gap-2">
-                          {items.has(crime.item_requirement.id) && (
-                            <button
-                              onClick={() => setSelectedItem(items.get(crime.item_requirement.id))}
-                              className="hover:opacity-80"
-                            >
-                              <img
-                                src={items.get(crime.item_requirement.id)?.image || "/placeholder.svg"}
-                                alt={items.get(crime.item_requirement.id)?.name}
-                                className="w-6 h-6 rounded"
-                              />
-                            </button>
-                          )}
-                          <span className="font-bold text-foreground">
-                            {items.has(crime.item_requirement.id)
-                              ? items.get(crime.item_requirement.id)?.name
-                              : `Item ${crime.item_requirement.id}`}
-                          </span>
-                          <span
-                            className={`ml-auto px-2 py-0.5 rounded font-bold border ${crime.item_requirement.is_available ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-red-500/20 text-red-400 border-red-500/40"}`}
-                          >
-                            {crime.item_requirement.is_available ? "✓" : "✗"}
-                          </span>
-                        </div>
-                      )}
-
                       {crime.status === "Successful" && crime.rewards && (
-                        <div className="mb-2 p-2 bg-green-500/10 rounded border border-green-500/30">
-                          <p className="text-xs font-bold text-green-400 mb-1.5 uppercase">Rewards</p>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-                            {crime.rewards.money > 0 && (
-                              <>
-                                <span className="text-muted-foreground">Money:</span>
-                                <span className="font-bold text-foreground text-right">
-                                  ${crime.rewards.money.toLocaleString()}
-                                </span>
-                              </>
-                            )}
-                            {crime.rewards.respect > 0 && (
-                              <>
-                                <span className="text-muted-foreground">Respect:</span>
-                                <span className="font-bold text-foreground text-right">{crime.rewards.respect}</span>
-                              </>
-                            )}
-                          </div>
+                        <div className="inline-block mb-2 p-1.5 bg-green-500/10 rounded border border-green-500/30">
+                          <p className="text-xs font-bold text-green-400 mb-1 uppercase">Rewards</p>
+                          <table className="text-xs">
+                            <tbody>
+                              {crime.rewards.money > 0 ? (
+                                <tr>
+                                  <td className="text-muted-foreground py-0 pr-4">Money:</td>
+                                  <td className="font-bold text-foreground text-right py-0">
+                                    ${crime.rewards.money.toLocaleString()}
+                                  </td>
+                                </tr>
+                              ) : (crime.rewards.items && crime.rewards.items.length > 0) || (crime.rewards.payout?.type === "Inventory") ? (
+                                <tr>
+                                  <td className="text-muted-foreground py-0 pr-4">Money:</td>
+                                  <td className="font-bold text-foreground text-right py-0">
+                                    Custom
+                                  </td>
+                                </tr>
+                              ) : null}
+                              {crime.rewards.respect > 0 && (
+                                <tr>
+                                  <td className="text-muted-foreground py-0 pr-4">Respect:</td>
+                                  <td className="font-bold text-foreground text-right py-0">{crime.rewards.respect}</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                          {crime.rewards.items && crime.rewards.items.length > 0 && (
+                            <div className="mt-1 pt-1 border-t border-green-500/20">
+                              <p className="text-xs font-bold text-green-400 mb-0.5 uppercase">Items</p>
+                              <table className="text-xs">
+                                <tbody>
+                                  {crime.rewards.items.map((rewardItem, itemIdx) => (
+                                    <tr key={itemIdx}>
+                                      <td className="py-0.5 pr-4">
+                                        <div className="flex items-center gap-2">
+                                          {items.has(rewardItem.id) && (
+                                            <button
+                                              onClick={() => setSelectedItem(items.get(rewardItem.id))}
+                                              className="hover:opacity-80 shrink-0"
+                                            >
+                                              <img
+                                                src={items.get(rewardItem.id)?.image || "/placeholder.svg"}
+                                                alt={items.get(rewardItem.id)?.name}
+                                                className="w-6 h-6 rounded"
+                                              />
+                                            </button>
+                                          )}
+                                          <span className="font-bold text-foreground whitespace-nowrap">
+                                            {items.has(rewardItem.id)
+                                              ? items.get(rewardItem.id)?.name
+                                              : `Item ${rewardItem.id}`}
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="font-bold text-foreground text-right py-0.5">x{rewardItem.quantity}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                           {crime.rewards.payout && (
-                            <div className="mt-2 pt-2 border-t border-green-500/20">
-                              <p className="text-xs font-bold text-green-400 mb-1 uppercase">Payout</p>
-                              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-                                <span className="text-muted-foreground">Type:</span>
-                                <span className="font-bold text-foreground text-right capitalize">
-                                  {crime.rewards.payout.type}
-                                </span>
-                                <span className="text-muted-foreground">Percentage:</span>
-                                <span className="font-bold text-foreground text-right">
-                                  {crime.rewards.payout.percentage}%
-                                </span>
-                                <span className="text-muted-foreground">Paid by:</span>
-                                <a
-                                  href={`https://www.torn.com/profiles.php?XID=${crime.rewards.payout.paid_by}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-accent hover:underline font-bold text-right"
-                                >
-                                  {memberMap[crime.rewards.payout.paid_by] || `ID: ${crime.rewards.payout.paid_by}`}
-                                </a>
-                                <span className="text-muted-foreground">Paid at:</span>
-                                <span className="font-mono text-foreground font-bold text-right text-[10px]">
-                                  {formatDateTime(crime.rewards.payout.paid_at)}
-                                </span>
-                              </div>
+                            <div className="mt-1 pt-1 border-t border-green-500/20">
+                              <p className="text-xs font-bold text-green-400 mb-0.5 uppercase">Payout</p>
+                              <table className="text-xs">
+                                <tbody>
+                                  <tr>
+                                    <td className="text-muted-foreground py-0 pr-4">Type:</td>
+                                    <td className="font-bold text-foreground text-right capitalize py-0">
+                                      {crime.rewards.payout.type}
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-muted-foreground py-0 pr-4">Percentage:</td>
+                                    <td className="font-bold text-foreground text-right py-0">
+                                      {crime.rewards.payout.percentage}%
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-muted-foreground py-0 pr-4">Paid by:</td>
+                                    <td className="text-right py-0">
+                                      <a
+                                        href={`https://www.torn.com/profiles.php?XID=${crime.rewards.payout.paid_by}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-accent hover:underline font-bold whitespace-nowrap"
+                                      >
+                                        {memberMap[crime.rewards.payout.paid_by] || `ID: ${crime.rewards.payout.paid_by}`}
+                                      </a>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td className="text-muted-foreground py-0 pr-4">Paid at:</td>
+                                    <td className="font-mono text-foreground font-bold text-right text-[10px] py-0 whitespace-nowrap">
+                                      {formatDateTime(crime.rewards.payout.paid_at)}
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                          {!crime.rewards.payout && (crime.rewards.money > 0 || (crime.rewards.items && crime.rewards.items.length > 0)) && (
+                            <div className="mt-1 pt-1 border-t border-green-500/20">
+                              <p className="text-xs text-muted-foreground italic">
+                                Payout was handled manually
+                              </p>
                             </div>
                           )}
                         </div>
                       )}
 
-                      <div className="pt-2 border-t border-border/30">
+                      <div className="pt-1.5 border-t border-border/30">
                         <p className="text-xs text-muted-foreground mb-1 font-bold uppercase">Positions:</p>
                         <div className="space-y-1">
                           {crime.slots.map((slot, idx) => {
@@ -734,12 +760,19 @@ export default function CrimesList({
                               ? shouldAlertLowCPR(slot.checkpoint_pass_rate, roleWeight, minPassRate)
                               : false
 
+                            const isOpenRecruitingSlot = crime.status === "Recruiting" && !slot.user
+                            const isMissingItemPlanning = crime.status === "Planning" && slot.user && slot.item_requirement && !slot.item_requirement.is_available
+
                             return (
                               <div
                                 key={idx}
                                 className={`text-xs px-2 py-1.5 rounded border transition-colors ${
                                   isHighRiskRole 
                                     ? "bg-red-500/10 border-red-500/40 hover:border-red-500/60"
+                                    : isOpenRecruitingSlot
+                                    ? "bg-purple-500/10 border-purple-500/40 animate-border-pulse-purple"
+                                    : isMissingItemPlanning
+                                    ? "bg-orange-500/10 border-orange-500/40 animate-border-pulse-orange"
                                     : "bg-background border-border/30 hover:border-primary/50"
                                 }`}
                               >
