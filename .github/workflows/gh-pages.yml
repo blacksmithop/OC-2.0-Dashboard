@@ -18,20 +18,17 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-
     defaults:
       run:
-        working-directory: frontend
-
+        working-directory: frontend 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
         run: |
