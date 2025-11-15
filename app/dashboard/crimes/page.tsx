@@ -16,6 +16,20 @@ import { handleFullLogout } from "@/lib/logout-handler"
 interface Member {
   id: number
   name: string
+  level: number
+  status: {
+    description: string
+    state: string
+    color: string
+  }
+  position: string
+  last_action: {
+    status: string
+    relative: string
+    timestamp: number
+  }
+  days_in_faction: number
+  is_in_oc: boolean
 }
 
 interface Crime {
@@ -456,6 +470,41 @@ export default function CrimesPage() {
     })
   }
 
+  const membersNotInOC = useMemo(() => {
+    // Filter positions to exclude
+    const excludedPositions = ['Recruit']
+    const excludedStates = ['Hospital', 'Jail', 'Fallen']
+    
+    // Get member IDs from Planning and Recruiting crimes
+    const membersInCrimes = new Set<number>()
+    crimes
+      .filter((crime) => crime.status === 'Planning' || crime.status === 'Recruiting')
+      .forEach((crime) => {
+        crime.slots.forEach((slot) => {
+          if (slot.user?.id) {
+            membersInCrimes.add(slot.user.id)
+          }
+        })
+      })
+    
+    // Filter members not in OCs
+    return members.filter((member) => {
+      // Exclude by position
+      if (excludedPositions.includes(member.position)) return false
+      
+      // Exclude by status
+      if (excludedStates.includes(member.status?.state)) return false
+      
+      // Primary check: is_in_oc field
+      if (member.is_in_oc) return false
+      
+      // Additional validation: check if in Planning/Recruiting crimes
+      if (membersInCrimes.has(member.id)) return false
+      
+      return true
+    }).sort((a, b) => a.name.localeCompare(b.name))
+  }, [members, crimes])
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -586,6 +635,29 @@ export default function CrimesPage() {
               </button>
             </div>
           )}
+          
+          {membersNotInOC.length > 0 && (
+            <div className="mb-4 bg-card border border-border rounded-lg p-4">
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-2">
+                Not in OC ({membersNotInOC.length})
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {membersNotInOC.map((member) => (
+                  <a
+                    key={member.id}
+                    href={`https://www.torn.com/profiles.php?XID=${member.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2 py-1 text-xs bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded transition-colors"
+                    title={`${member.name} - ${member.position}`}
+                  >
+                    {member.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <CrimeSummary
             crimes={dateFilteredCrimes}
             items={items}
