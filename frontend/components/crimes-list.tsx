@@ -72,6 +72,7 @@ interface CrimesListProps {
   onMemberClick?: (memberId: number) => void
   onCrimeReload?: (crimeId: number) => Promise<Crime | null>
   minPassRate: number
+  factionId: number | null
 }
 
 export default function CrimesList({
@@ -81,6 +82,7 @@ export default function CrimesList({
   onMemberClick,
   onCrimeReload,
   minPassRate,
+  factionId,
 }: CrimesListProps) {
   const [collapsedStatus, setCollapsedStatus] = useState<Set<string>>(
     new Set(["Recruiting", "Planning", "Ongoing", "Successful", "Failed", "Expired"]),
@@ -523,7 +525,18 @@ export default function CrimesList({
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="text-foreground font-normal">{crime.name}</h4>
+                            {factionId ? (
+                              <a
+                                href={`https://www.torn.com/factions.php?step=profile&ID=${factionId}#/tab=crimes&crimeId=${crime.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-foreground font-normal hover:text-primary hover:underline transition-colors"
+                              >
+                                {crime.name}
+                              </a>
+                            ) : (
+                              <h4 className="text-foreground font-normal">{crime.name}</h4>
+                            )}
                             <button
                               onClick={() => copyToClipboard(crime.id)}
                               title="Copy ID"

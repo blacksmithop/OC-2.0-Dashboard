@@ -81,6 +81,7 @@ export default function CrimesPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [filteredMemberId, setFilteredMemberId] = useState<number | null>(null)
+  const [factionId, setFactionId] = useState<number | null>(null)
   const [minPassRate, setMinPassRate] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('minPassRate')
@@ -169,6 +170,17 @@ export default function CrimesPage() {
     setIsLoading(true)
 
     try {
+      const cachedFaction = localStorage.getItem("factionBasic")
+      if (cachedFaction) {
+        try {
+          const factionData = JSON.parse(cachedFaction)
+          setFactionId(factionData.basic?.id || null)
+          console.log(`[v0] Loaded faction ID: ${factionData.basic?.id}`)
+        } catch (e) {
+          console.error("[v0] Failed to parse cached faction:", e)
+        }
+      }
+
       // Load items from cache
       const cachedItems = localStorage.getItem("tornItems")
       if (cachedItems) {
@@ -245,6 +257,19 @@ export default function CrimesPage() {
     }
 
     try {
+      const factionRes = await fetch("https://api.torn.com/v2/faction/basic?striptags=true", {
+        headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
+      })
+
+      if (factionRes.ok) {
+        const factionData = await factionRes.json()
+        if (!factionData.error && factionData.basic?.id) {
+          setFactionId(factionData.basic.id)
+          localStorage.setItem("factionBasic", JSON.stringify(factionData))
+          console.log(`[v0] Fetched faction ID: ${factionData.basic.id}`)
+        }
+      }
+
       const itemsData = await fetchAndCacheItems(apiKey)
       setItems(itemsData)
 
@@ -650,6 +675,7 @@ export default function CrimesPage() {
             items={items}
             onCrimeReload={handleReloadCrime}
             minPassRate={minPassRate}
+            factionId={factionId}
           />
         </div>
       </main>
