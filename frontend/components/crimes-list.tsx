@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { ProgressRing } from "./progress-ring"
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import { ChevronDown, ArrowUpDown, RefreshCw, Microscope, AlertTriangle, Sparkles } from 'lucide-react'
@@ -736,6 +737,14 @@ export default function CrimesList({
                                           >
                                             {slot.checkpoint_pass_rate}%
                                           </span>
+                                        )}
+                                        {crime.status === "Planning" && slot.user?.progress !== undefined && (
+                                          <div className="flex items-center gap-1 shrink-0" title={`Progress: ${slot.user.progress.toFixed(1)}%`}>
+                                            <ProgressRing progress={slot.user.progress} size={20} strokeWidth={3} />
+                                            <span className="text-xs text-muted-foreground font-bold">
+                                              {slot.user.progress.toFixed(1)}%
+                                            </span>
+                                          </div>
                                         )}
                                         {crime.status === "Successful" && slot.user.outcome && (
                                           <span
