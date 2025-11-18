@@ -7,7 +7,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://oc\.tornrevive\.page",
+    allow_origins=["https://oc.tornrevive.page", "http://localhost:3000"],
     allow_methods=["OPTIONS", "HEAD", "GET", "POST"],
     allow_headers=["*"],
 )
