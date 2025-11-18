@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast"
 import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw, Package, TrendingUp, TrendingDown, X, Settings } from 'lucide-react'
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
-import { clearAllCache } from "@/lib/cache-reset"
+import { clearAllCache } from "@/lib/cache/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { parseFundsNews, type FundsNewsEntry } from "@/lib/funds-parser"
 

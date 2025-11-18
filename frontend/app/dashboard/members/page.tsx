@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useToast } from "@/hooks/use-toast"
 import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw } from 'lucide-react'
 import MemberList from "@/components/members/member-list"
-import { fetchAndCacheItems } from "@/lib/items-cache"
+import { fetchAndCacheItems } from "@/lib/cache/items-cache"
+import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
+import { fetchAndCacheBalance } from "@/lib/cache/balance-cache"
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
-import { clearAllCache } from "@/lib/cache-reset"
+import { clearAllCache } from "@/lib/cache/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { canAccessBalance } from "@/lib/api-scopes"
 import { fetchFFScouterStats } from "@/lib/ffscouter"
@@ -92,45 +94,19 @@ export default function MembersPage() {
     try {
       await fetchAndCacheItems(apiKey)
 
-      let balanceData: any = null
+      let balanceData = null
       if (shouldFetchBalance) {
-        try {
-          console.log("[v0] Fetching faction balance...")
-          const balanceRes = await fetch("https://api.torn.com/v2/faction/balance", {
-            headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
-          })
-
-          if (!balanceRes.ok) {
-            await handleApiError(balanceRes, "/faction/balance")
-          } else {
-            balanceData = await balanceRes.json()
-            validateApiResponse(balanceData, "/faction/balance")
-            if (balanceData?.balance?.total !== undefined) {
-              setFactionBalance(balanceData.balance.total)
-              console.log("[v0] Faction balance:", balanceData.balance.total)
-            }
-          }
-        } catch (err) {
-          console.error("[v0] Failed to fetch balance data:", err)
+        balanceData = await fetchAndCacheBalance(apiKey)
+        if (balanceData) {
+          setFactionBalance(balanceData.total)
         }
-      } else {
-        console.log("[v0] Balance scope not enabled, skipping faction balance fetch")
       }
 
-      const membersRes = await fetch("https://api.torn.com/v2/faction/members?striptags=true", {
-        headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
-      })
-
-      if (!membersRes.ok) {
-        await handleApiError(membersRes, "/faction/members")
-      }
-
-      const membersData = await membersRes.json()
-      validateApiResponse(membersData, "/faction/members")
-
-      const membersArray = Object.values(membersData.members || {})
-      if (balanceData?.balance?.members) {
-        balanceData.balance.members.forEach((balanceMember: { id: number; money: number }) => {
+      const membersData = await fetchAndCacheMembers(apiKey)
+      const membersArray = Array.from(membersData.values())
+      
+      if (balanceData?.members) {
+        balanceData.members.forEach((balanceMember) => {
           const member = membersArray.find((m: any) => m.id === balanceMember.id)
           if (member) {
             (member as any).money = balanceMember.money

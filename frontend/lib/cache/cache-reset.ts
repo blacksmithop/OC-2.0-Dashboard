@@ -9,7 +9,15 @@ export function clearAllCache() {
     "factionItemsTimestamp",
     "factionArmoryLogs",
     "lastArmoryFetch",
+    "armoryNews", // Current armory logs
+    "armoryMaxFetch", // Armory fetch configuration
     "crimeApiCache",
+    "factionBalance",
+    "factionBalanceTimestamp",
+    "factionMembersCache",
+    "factionMembersTimestamp",
+    "factionBasicCache",
+    "factionBasic", // Legacy format
   ]
 
   itemsToClear.forEach((key) => {

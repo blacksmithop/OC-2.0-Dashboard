@@ -6,30 +6,10 @@ import { useToast } from "@/hooks/use-toast"
 import { LogOut, MoreVertical, ArrowLeft, Users, Award, TrendingUp, Calendar, Crown, RotateCcw } from 'lucide-react'
 import { Card } from "@/components/ui/card"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
-import { clearAllCache } from "@/lib/cache-reset"
+import { clearAllCache } from "@/lib/cache/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
-
-interface FactionBasic {
-  id: number
-  name: string
-  tag: string
-  tag_image: string
-  leader_id: number
-  co_leader_id: number
-  respect: number
-  days_old: number
-  capacity: number
-  members: number
-  is_enlisted: boolean
-  rank: {
-    level: number
-    name: string
-    division: number
-    position: number
-    wins: number
-  }
-  best_chain: number
-}
+import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
+import { fetchAndCacheFactionBasic, type FactionBasic } from "@/lib/cache/faction-basic-cache"
 
 interface Member {
   id: number
@@ -60,41 +40,14 @@ export default function FactionPage() {
     setIsLoading(true)
 
     try {
-      const [basicResponse, membersResponse] = await Promise.all([
-        fetch("https://api.torn.com/v2/faction/basic?striptags=true", {
-          headers: {
-            Authorization: `ApiKey ${apiKey}`,
-            accept: "application/json",
-          },
-        }),
-        fetch("https://api.torn.com/v2/faction/members?striptags=true", {
-          headers: {
-            Authorization: `ApiKey ${apiKey}`,
-            accept: "application/json",
-          },
-        }),
-      ])
+      const basicData = await fetchAndCacheFactionBasic(apiKey)
+      setFactionData(basicData)
 
-      if (!basicResponse.ok) {
-        throw new Error("Failed to fetch faction data")
-      }
-
-      const basicData = await basicResponse.json()
-
-      if (basicData.error) {
-        if (basicData.error.code === 2) {
-          throw new Error("API key does not have access to faction basic info")
-        }
-        throw new Error(basicData.error.error || "Failed to fetch faction data")
-      }
-
-      setFactionData(basicData.basic)
-
-      if (membersResponse.ok) {
-        const membersData = await membersResponse.json()
-        if (!membersData.error) {
-          setMembers(Object.values(membersData.members || {}))
-        }
+      try {
+        const membersData = await fetchAndCacheMembers(apiKey)
+        setMembers(Array.from(membersData.values()).map(m => ({ id: m.id, name: m.name })))
+      } catch (err) {
+        console.error("[v0] Error loading members:", err)
       }
 
       if (!refreshing) {

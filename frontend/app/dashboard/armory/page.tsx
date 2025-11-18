@@ -4,10 +4,11 @@ import { useEffect, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { useToast } from "@/hooks/use-toast"
 import { Package, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
-import { fetchAndCacheItems } from "@/lib/items-cache"
-import type { TornItem } from "@/lib/items-cache"
+import { fetchAndCacheItems } from "@/lib/cache/items-cache"
+import type { TornItem } from "@/lib/cache/items-cache"
+import { fetchAndCacheMembers, type FactionMember } from "@/lib/cache/members-cache"
 import ItemModal from "@/components/crimes/item-modal"
-import { crimeApiCache } from "@/lib/crime-api-cache"
+import { crimeApiCache } from "@/lib/cache/crime-api-cache"
 import { handleFullLogout } from "@/lib/logout-handler"
 import ArmoryHeader from "@/components/armory/armory-header"
 import ArmoryStats from "@/components/armory/armory-stats"
@@ -89,8 +90,8 @@ function parseArmoryNews(uuid: string, timestamp: number, news: string): ArmoryN
         timestamp,
         news,
         action: "retrieved",
-        user: { name: match[5], id: Number.parseInt(match[4]) },
-        target: { name: match[2], id: Number.parseInt(match[1]) },
+        user: { name: match[2], id: Number.parseInt(match[1]) }, // The person who retrieved (Oxiblurr)
+        target: { name: match[5], id: Number.parseInt(match[4]) }, // The person it was retrieved from (BlackPerl)
         item: { name: match[3].trim(), quantity: 1 },
       }
     }
@@ -196,7 +197,7 @@ export default function ArmoryPage() {
   const { toast } = useToast()
   const [armoryNews, setArmoryNews] = useState<ArmoryNewsItem[]>([])
   const [items, setItems] = useState<Map<number, TornItem>>(new Map())
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<FactionMember[]>([])
   const [isFetching, setIsFetching] = useState(false)
   const [fetchProgress, setFetchProgress] = useState({ current: 0, max: 0 })
   const [currentPage, setCurrentPage] = useState(1)
@@ -240,23 +241,8 @@ export default function ArmoryPage() {
 
   const loadMembersData = async (apiKey: string) => {
     try {
-      const response = await fetch("https://api.torn.com/v2/faction/members?striptags=true", {
-        headers: {
-          Authorization: `ApiKey ${apiKey}`,
-          accept: "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch members")
-      }
-
-      const data = await response.json()
-      if (data.error) {
-        throw new Error(data.error.error || "Failed to fetch members")
-      }
-
-      const membersList = Object.values(data.members || {}).map((m: any) => ({
+      const membersData = await fetchAndCacheMembers(apiKey)
+      const membersList = Array.from(membersData.values()).map((m: FactionMember) => ({
         id: m.id,
         name: m.name,
       }))
@@ -471,6 +457,17 @@ export default function ArmoryPage() {
     }, 500)
   }
 
+  const handleClearCache = () => {
+    localStorage.removeItem("armoryNews")
+    localStorage.removeItem("armoryMaxFetch")
+    setArmoryNews([])
+    setCurrentPage(1)
+    toast({
+      title: "Cache Cleared",
+      description: "Armory cache has been cleared successfully",
+    })
+  }
+
   const groupConsecutiveLogs = (logs: ArmoryNewsItem[]): GroupedLog[] => {
     if (logs.length === 0) return []
 
@@ -612,7 +609,7 @@ export default function ArmoryPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <ArmoryHeader onLogout={handleLogout} />
+      <ArmoryHeader onLogout={handleLogout} onClearCache={handleClearCache} />
 
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-6xl mx-auto space-y-6">

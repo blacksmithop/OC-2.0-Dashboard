@@ -3,14 +3,15 @@
 import { useEffect, useState, useMemo } from "react"
 import { useRouter } from 'next/navigation'
 import { useToast } from "@/hooks/use-toast"
-import { fetchAndCacheItems } from "@/lib/items-cache"
-import type { TornItem } from "@/lib/items-cache"
+import { fetchAndCacheItems } from "@/lib/cache/items-cache"
+import type { TornItem } from "@/lib/cache/items-cache"
+import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
 import CrimeSummary from "@/components/crimes/crime-summary"
 import CrimeSuccessCharts from "@/components/crimes/crime-success-charts"
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
-import { clearAllCache } from "@/lib/cache-reset"
-import { crimeApiCache } from "@/lib/crime-api-cache"
+import { clearAllCache } from "@/lib/cache/cache-reset"
+import { crimeApiCache } from "@/lib/cache/crime-api-cache"
 import { canAccessArmory, canAccessFunds } from "@/lib/api-scopes"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
@@ -84,20 +85,8 @@ export default function Dashboard() {
       const itemsData = await fetchAndCacheItems(apiKey)
       setItems(itemsData)
 
-      const membersRes = await fetch("https://api.torn.com/v2/faction/members?striptags=true", {
-        headers: {
-          Authorization: `ApiKey ${apiKey}`,
-          accept: "application/json",
-        },
-      })
-
-      if (!membersRes.ok) {
-        await handleApiError(membersRes, "/faction/members")
-      }
-
-      const membersData = await membersRes.json()
-      validateApiResponse(membersData, "/faction/members")
-      setMemberCount(Object.keys(membersData.members || {}).length)
+      const membersData = await fetchAndCacheMembers(apiKey)
+      setMemberCount(membersData.size)
 
       const crimesRes = await fetch("https://api.torn.com/v2/faction/crimes?striptags=true", {
         headers: {

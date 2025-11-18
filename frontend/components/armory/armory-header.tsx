@@ -1,14 +1,15 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, MoreVertical, Info, LogOut } from 'lucide-react'
+import { ArrowLeft, MoreVertical, Info, LogOut, Trash2 } from 'lucide-react'
 import { useState } from "react"
 
 interface ArmoryHeaderProps {
   onLogout: () => void
+  onClearCache?: () => void
 }
 
-export default function ArmoryHeader({ onLogout }: ArmoryHeaderProps) {
+export default function ArmoryHeader({ onLogout, onClearCache }: ArmoryHeaderProps) {
   const router = useRouter()
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
@@ -52,6 +53,18 @@ export default function ArmoryHeader({ onLogout }: ArmoryHeaderProps) {
                   <Info size={18} />
                   Faction
                 </button>
+                {onClearCache && (
+                  <button
+                    onClick={() => {
+                      onClearCache()
+                      setDropdownOpen(false)
+                    }}
+                    className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-accent transition-colors border-t border-border"
+                  >
+                    <Trash2 size={18} />
+                    Clear Cache
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     onLogout()

@@ -54,6 +54,18 @@ export async function getItemsFromCache(): Promise<Map<number, TornItem>> {
 
 export async function fetchAndCacheItems(apiKey: string): Promise<Map<number, TornItem>> {
   try {
+    // Check if we have valid cached data first
+    const cached = localStorage.getItem(ITEMS_CACHE_KEY)
+    const expiry = localStorage.getItem(ITEMS_CACHE_EXPIRY_KEY)
+
+    if (cached && expiry && Date.now() < Number.parseInt(expiry)) {
+      console.log("[v0] Using cached items data (still valid)")
+      const data = JSON.parse(cached)
+      return new Map(Object.entries(data).map(([key, value]: [string, any]) => [Number.parseInt(key), value]))
+    }
+
+    // Cache expired or doesn't exist, fetch from API
+    console.log("[v0] Fetching items from API (cache expired or missing)")
     const response = await fetch("https://api.torn.com/v2/torn/items?sort=ASC&striptags=true", {
       headers: {
         Authorization: `ApiKey ${apiKey}`,
@@ -93,6 +105,7 @@ export async function fetchAndCacheItems(apiKey: string): Promise<Map<number, To
     // Cache the items
     localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify(itemsMap))
     localStorage.setItem(ITEMS_CACHE_EXPIRY_KEY, (Date.now() + CACHE_DURATION).toString())
+    console.log("[v0] Cached items data for 24 hours")
 
     return new Map(Object.entries(itemsMap).map(([key, value]) => [Number.parseInt(key), value]))
   } catch (error) {
@@ -101,6 +114,7 @@ export async function fetchAndCacheItems(apiKey: string): Promise<Map<number, To
       throw error
     }
     // Fall back to cache if available
+    console.log("[v0] Falling back to cached items data")
     return getItemsFromCache()
   }
 }

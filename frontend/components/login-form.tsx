@@ -2,11 +2,13 @@
 
 import type React from "react"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import ApiKeyBuilder from "@/components/api-key-builder"
+import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 
 interface LoginFormProps {
   onLogin?: (apiKey: string) => void
@@ -23,43 +25,15 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     setIsLoading(true)
 
     try {
-      const basicResponse = await fetch("https://api.torn.com/v2/faction/basic", {
-        headers: {
-          Authorization: `ApiKey ${apiKey}`,
-          accept: "application/json",
-        },
-      })
+      const factionBasic = await fetchAndCacheFactionBasic(apiKey)
 
-      if (!basicResponse.ok) {
-        await handleApiError(basicResponse, "/faction/basic")
-      }
-
-      const basicData = await basicResponse.json()
-      validateApiResponse(basicData, "/faction/basic")
-
-      const factionId = basicData.basic?.id
-
-      const membersResponse = await fetch("https://api.torn.com/v2/faction/members?striptags=true", {
-        headers: {
-          Authorization: `ApiKey ${apiKey}`,
-          accept: "application/json",
-        },
-      })
-
-      if (!membersResponse.ok) {
-        await handleApiError(membersResponse, "/faction/members")
-      }
-
-      const membersData = await membersResponse.json()
-      validateApiResponse(membersData, "/faction/members")
+      await fetchAndCacheMembers(apiKey)
 
       localStorage.setItem("factionApiKey", apiKey)
-      localStorage.setItem("factionId", factionId.toString())
-      localStorage.setItem("factionName", basicData.basic?.name || "")
 
       toast({
         title: "Success",
-        description: `Authentication successful! Welcome, ${basicData.basic?.name || "Faction Member"}!`,
+        description: `Authentication successful! Welcome, ${factionBasic.name || "Faction Member"}!`,
       })
       onLogin?.(apiKey)
 

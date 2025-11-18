@@ -6,12 +6,14 @@ import { useToast } from "@/hooks/use-toast"
 import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw } from 'lucide-react'
 import CrimesList from "@/components/crimes/crimes-list"
 import CrimeSummary from "@/components/crimes/crime-summary"
-import { fetchAndCacheItems } from "@/lib/items-cache"
-import type { TornItem } from "@/lib/items-cache"
+import { fetchAndCacheItems } from "@/lib/cache/items-cache"
+import type { TornItem } from "@/lib/cache/items-cache"
+import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
-import { clearAllCache } from "@/lib/cache-reset"
+import { clearAllCache } from "@/lib/cache/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
+import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 import type { Crime, Member } from "@/types/crime"
 import { DATE_FILTER_OPTIONS } from "@/constants/date-filters"
 import { filterCrimesByDateRange } from "@/lib/crime-filters"
@@ -203,34 +205,15 @@ export default function CrimesPage() {
     }
 
     try {
-      const factionRes = await fetch("https://api.torn.com/v2/faction/basic?striptags=true", {
-        headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
-      })
-
-      if (factionRes.ok) {
-        const factionData = await factionRes.json()
-        if (!factionData.error && factionData.basic?.id) {
-          setFactionId(factionData.basic.id)
-          localStorage.setItem("factionBasic", JSON.stringify(factionData))
-          console.log(`[v0] Fetched faction ID: ${factionData.basic.id}`)
-        }
-      }
+      const factionBasic = await fetchAndCacheFactionBasic(apiKey)
+      setFactionId(factionBasic.id)
+      console.log(`[v0] Fetched faction ID: ${factionBasic.id}`)
 
       const itemsData = await fetchAndCacheItems(apiKey)
       setItems(itemsData)
 
-      const membersRes = await fetch("https://api.torn.com/v2/faction/members?striptags=true", {
-        headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
-      })
-
-      if (!membersRes.ok) {
-        await handleApiError(membersRes, "/faction/members")
-      }
-
-      const membersData = await membersRes.json()
-      validateApiResponse(membersData, "/faction/members")
-
-      setMembers(Object.values(membersData.members || {}))
+      const membersData = await fetchAndCacheMembers(apiKey)
+      setMembers(Array.from(membersData.values()))
 
       const crimesRes = await fetch("https://api.torn.com/v2/faction/crimes?striptags=true", {
         headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
