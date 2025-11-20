@@ -1,9 +1,20 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { RefreshCw, LogOut, MoreVertical, Info, Play, Loader2, ChevronDown, ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react'
+import {
+  RefreshCw,
+  LogOut,
+  MoreVertical,
+  Info,
+  Play,
+  Loader2,
+  ChevronDown,
+  ArrowLeft,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react"
 import { fetchAndCacheItems } from "@/lib/cache/items-cache"
 import type { TornItem } from "@/lib/cache/items-cache"
 import { VictoryPie } from "victory"
@@ -15,6 +26,7 @@ import { DATE_FILTER_OPTIONS } from "@/constants/date-filters"
 import { filterCrimesByDateRange } from "@/lib/crime-filters"
 import { formatCurrency } from "@/lib/crime-formatters"
 import { getDifficultyColor } from "@/lib/crime-colors"
+import { CRIME_METADATA } from "@/lib/crime-metadata"
 
 interface CrimesResponse {
   crimes: Record<string, Crime>
@@ -67,9 +79,12 @@ export default function ReportsPage() {
 
     const loadData = async () => {
       try {
-        const crimesRes = await fetch("https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes", {
-          headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
-        })
+        const crimesRes = await fetch(
+          "https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes",
+          {
+            headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
+          },
+        )
 
         if (crimesRes.ok) {
           const crimesData = await crimesRes.json()
@@ -619,8 +634,10 @@ export default function ReportsPage() {
                       onChange={(e) => setDateFilter(Number(e.target.value))}
                       className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     >
-                      {DATE_FILTER_OPTIONS.map(option => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
+                      {DATE_FILTER_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -628,6 +645,7 @@ export default function ReportsPage() {
 
                 {crimeStats.map((crime) => {
                   const isExpanded = expandedCrimes.has(crime.name)
+                  const metadata = CRIME_METADATA[crime.name]
                   const pieData = []
                   const colors = []
 
@@ -677,10 +695,7 @@ export default function ReportsPage() {
                   }
 
                   const crimeInstances = crimes.filter((c) => c.name === crime.name && c.status === "Successful")
-                  const totalMoney = crimeInstances.reduce(
-                    (sum, c) => sum + (c.rewards?.money || 0),
-                    0,
-                  )
+                  const totalMoney = crimeInstances.reduce((sum, c) => sum + (c.rewards?.money || 0), 0)
                   const avgMoney = crimeInstances.length > 0 ? totalMoney / crimeInstances.length : 0
 
                   return (
@@ -723,6 +738,63 @@ export default function ReportsPage() {
 
                       {isExpanded && pieData.length > 0 && (
                         <div className="p-6 border-t border-border/50 animate-in fade-in duration-200">
+                          {metadata && (
+                            <div className="mb-6 space-y-4">
+                              <div className="bg-background/50 rounded-lg p-4 border border-border">
+                                <h5 className="text-sm font-bold text-primary mb-2">Description</h5>
+                                <p className="text-sm text-muted-foreground leading-relaxed">{metadata.description}</p>
+                              </div>
+
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="bg-background/50 rounded-lg p-3 border border-border">
+                                  <div className="text-xs text-muted-foreground mb-1">Spawn Level</div>
+                                  <div className="text-lg font-bold text-cyan-400">
+                                    {metadata.spawn.name} (Lvl {metadata.spawn.level})
+                                  </div>
+                                </div>
+                                <div className="bg-background/50 rounded-lg p-3 border border-border">
+                                  <div className="text-xs text-muted-foreground mb-1">Scope Cost</div>
+                                  <div className="text-lg font-bold text-orange-400">{metadata.scope.cost}</div>
+                                </div>
+                                <div className="bg-background/50 rounded-lg p-3 border border-border">
+                                  <div className="text-xs text-muted-foreground mb-1">Scope Return</div>
+                                  <div className="text-lg font-bold text-green-400">{metadata.scope.return}</div>
+                                </div>
+                                <div className="bg-background/50 rounded-lg p-3 border border-border">
+                                  <div className="text-xs text-muted-foreground mb-1">Prerequisite</div>
+                                  <div className="text-sm font-bold text-yellow-400">
+                                    {metadata.prerequisite || "None"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-background/50 rounded-lg p-4 border border-border">
+                                <h5 className="text-sm font-bold text-primary mb-3">Required Roles & Items</h5>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {metadata.slots.map((slot) => (
+                                    <div
+                                      key={slot.id}
+                                      className="flex items-center justify-between p-2 bg-background rounded border border-border/50"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-mono text-muted-foreground">{slot.id}</span>
+                                        <span className="text-sm font-medium">{slot.name}</span>
+                                      </div>
+                                      {slot.required_item && (
+                                        <div className="flex items-center gap-1 text-xs">
+                                          <span className="text-muted-foreground">{slot.required_item.name}</span>
+                                          {slot.required_item.is_used && (
+                                            <span className="text-red-400 font-bold">(Used)</span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="mb-6 grid grid-cols-2 gap-4">
                             <div className="bg-background rounded-lg p-4 border border-border">
                               <div className="text-xs text-muted-foreground mb-1">Total Money</div>
@@ -730,7 +802,9 @@ export default function ReportsPage() {
                             </div>
                             <div className="bg-background rounded-lg p-4 border border-border">
                               <div className="text-xs text-muted-foreground mb-1">Average Money</div>
-                              <div className="text-xl font-bold text-green-400">{formatCurrency(Math.round(avgMoney))}</div>
+                              <div className="text-xl font-bold text-green-400">
+                                {formatCurrency(Math.round(avgMoney))}
+                              </div>
                             </div>
                           </div>
                           <div className="flex justify-center">
