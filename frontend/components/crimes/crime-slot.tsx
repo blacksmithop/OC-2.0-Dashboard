@@ -2,11 +2,11 @@
 
 import type { Slot, Member } from "@/types/crime"
 import { useState } from "react"
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle } from "lucide-react"
 import { ProgressRing } from "./progress-ring"
 import { getPositionPassRateColor } from "@/lib/crime-colors"
 import { getWeightColor, getWeightBgColor } from "@/lib/role-weights"
-import { getRecommendedMembers, type MemberRecommendation } from "@/lib/tornstats"
+import { getRecommendedMembers, type MemberRecommendation, type CPRTrackerData } from "@/lib/cpr-tracker"
 
 interface CrimeSlotProps {
   slot: Slot
@@ -22,7 +22,8 @@ interface CrimeSlotProps {
   roleWeight: number | null
   isHighRiskRole: boolean
   membersNotInOCSet: Set<number>
-  tornStatsEnabled: boolean
+  cprTrackerData: CPRTrackerData | null
+  cprTrackerEnabled: boolean
 }
 
 export default function CrimeSlot({
@@ -39,37 +40,30 @@ export default function CrimeSlot({
   roleWeight,
   isHighRiskRole,
   membersNotInOCSet,
-  tornStatsEnabled,
+  cprTrackerData,
+  cprTrackerEnabled,
 }: CrimeSlotProps) {
   const [recommendations, setRecommendations] = useState<MemberRecommendation[]>([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
   const [showRecommendations, setShowRecommendations] = useState(false)
 
-  const isAtRisk =
-    slot.user &&
-    slot.checkpoint_pass_rate !== undefined &&
-    slot.checkpoint_pass_rate < minPassRate
+  const isAtRisk = slot.user && slot.checkpoint_pass_rate !== undefined && slot.checkpoint_pass_rate < minPassRate
 
   const isOpenRecruitingSlot = crimeStatus === "Recruiting" && !slot.user
-  const isMissingItemPlanning = crimeStatus === "Planning" && slot.user && slot.item_requirement && !slot.item_requirement.is_available
+  const isMissingItemPlanning =
+    crimeStatus === "Planning" && slot.user && slot.item_requirement && !slot.item_requirement.is_available
 
-  const handleRecommendClick = async () => {
-    if (loadingRecommendations) return
-
-    const tornStatsApiKey = typeof window !== 'undefined' ? localStorage.getItem('TORNSTATS_API_KEY') : null
-    if (!tornStatsApiKey) {
-      console.error('[v0] TornStats API key not found')
-      return
-    }
+  const handleRecommendClick = () => {
+    if (loadingRecommendations || !cprTrackerData) return
 
     setLoadingRecommendations(true)
 
     try {
-      const recs = await getRecommendedMembers(tornStatsApiKey, crimeName, slot.position, membersNotInOCSet, minPassRate)
-      
-      const recsWithNames = recs.map(rec => ({
+      const recs = getRecommendedMembers(cprTrackerData, crimeName, slot.position, membersNotInOCSet, minPassRate)
+
+      const recsWithNames = recs.map((rec) => ({
         ...rec,
-        memberName: members.find(m => m.id === rec.memberId)?.name || `ID: ${rec.memberId}`
+        memberName: members.find((m) => m.id === rec.memberId)?.name || `ID: ${rec.memberId}`,
       }))
 
       setRecommendations(recsWithNames)
@@ -83,13 +77,13 @@ export default function CrimeSlot({
     <div className="space-y-1">
       <div
         className={`text-xs px-2 py-1.5 rounded border transition-colors ${
-          isHighRiskRole 
+          isHighRiskRole
             ? "bg-red-500/10 border-red-500/40 hover:border-red-500/60"
             : isOpenRecruitingSlot
-            ? "bg-purple-500/10 border-purple-500/40 animate-border-pulse-purple"
-            : isMissingItemPlanning
-            ? "bg-orange-500/10 border-orange-500/40 animate-border-pulse-orange"
-            : "bg-background border-border/30 hover:border-primary/50"
+              ? "bg-purple-500/10 border-purple-500/40 animate-border-pulse-purple"
+              : isMissingItemPlanning
+                ? "bg-orange-500/10 border-orange-500/40 animate-border-pulse-orange"
+                : "bg-background border-border/30 hover:border-primary/50"
         }`}
       >
         <div className="flex items-center justify-between gap-2">
@@ -125,11 +119,12 @@ export default function CrimeSlot({
                   </span>
                 )}
                 {crimeStatus === "Planning" && slot.user?.progress !== undefined && (
-                  <div className="flex items-center gap-1 shrink-0" title={`Progress: ${slot.user.progress.toFixed(1)}%`}>
+                  <div
+                    className="flex items-center gap-1 shrink-0"
+                    title={`Progress: ${slot.user.progress.toFixed(1)}%`}
+                  >
                     <ProgressRing progress={slot.user.progress} size={20} strokeWidth={3} />
-                    <span className="text-xs text-muted-foreground font-bold">
-                      {slot.user.progress.toFixed(1)}%
-                    </span>
+                    <span className="text-xs text-muted-foreground font-bold">{slot.user.progress.toFixed(1)}%</span>
                   </div>
                 )}
                 {crimeStatus === "Successful" && slot.user.outcome && (
@@ -147,13 +142,13 @@ export default function CrimeSlot({
             ) : (
               <>
                 <span className="text-muted-foreground">Open</span>
-                {isOpenRecruitingSlot && tornStatsEnabled && (
+                {isOpenRecruitingSlot && cprTrackerEnabled && cprTrackerData && (
                   <button
                     onClick={handleRecommendClick}
                     disabled={loadingRecommendations}
                     className="ml-auto px-2 py-0.5 text-xs rounded border bg-blue-500/20 text-blue-400 border-blue-500/40 hover:bg-blue-500/30 disabled:opacity-50 transition-colors"
                   >
-                    {loadingRecommendations ? 'Loading...' : 'Recommend'}
+                    {loadingRecommendations ? "Loading..." : "Recommend"}
                   </button>
                 )}
               </>
@@ -163,10 +158,7 @@ export default function CrimeSlot({
             {slot.item_requirement && (
               <>
                 {items.has(slot.item_requirement.id) && (
-                  <button
-                    onClick={() => onItemClick(items.get(slot.item_requirement.id))}
-                    className="hover:opacity-80"
-                  >
+                  <button onClick={() => onItemClick(items.get(slot.item_requirement.id))} className="hover:opacity-80">
                     <img
                       src={items.get(slot.item_requirement.id)?.image || "/placeholder.svg"}
                       alt={items.get(slot.item_requirement.id)?.name}
@@ -196,22 +188,17 @@ export default function CrimeSlot({
                 Item: {slot.item_requirement.is_reusable ? "Not consumed" : "Consumed"}
               </span>
             ) : (
-              <span className="text-muted-foreground">
-                Item: {slot.user.item_outcome.outcome}
-              </span>
+              <span className="text-muted-foreground">Item: {slot.user.item_outcome.outcome}</span>
             )}
           </div>
         )}
       </div>
-      
+
       {showRecommendations && recommendations.length > 0 && (
         <div className="ml-4 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs">
           <div className="flex items-center justify-between mb-1">
             <p className="font-bold text-blue-400">Recommended Members ({recommendations.length})</p>
-            <button
-              onClick={() => setShowRecommendations(false)}
-              className="text-blue-400 hover:text-blue-300"
-            >
+            <button onClick={() => setShowRecommendations(false)} className="text-blue-400 hover:text-blue-300">
               ✕
             </button>
           </div>
@@ -238,10 +225,7 @@ export default function CrimeSlot({
         <div className="ml-4 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs">
           <div className="flex items-center justify-between">
             <p className="text-muted-foreground">No members meet the minimum CPR ({minPassRate}%)</p>
-            <button
-              onClick={() => setShowRecommendations(false)}
-              className="text-blue-400 hover:text-blue-300"
-            >
+            <button onClick={() => setShowRecommendations(false)} className="text-blue-400 hover:text-blue-300">
               ✕
             </button>
           </div>

@@ -328,9 +328,9 @@ export default function ReportsPage() {
 
         if (crimesArray.length > 0) {
           const oldestCrime = crimesArray.reduce((oldest, crime) =>
-            crime.executed_at < oldest.executed_at ? crime : oldest,
+            crime.executed_at! < oldest.executed_at! ? crime : oldest,
           )
-          oldestTimestamp = oldestCrime.executed_at
+          oldestTimestamp = oldestCrime.executed_at!
           lastOldestCrimeId = oldestCrime.id
         } else {
           hasMoreData = false
@@ -352,7 +352,7 @@ export default function ReportsPage() {
           const crimesArray = Object.values(data.crimes)
 
           const newOldestCrime = crimesArray.reduce((oldest, crime) =>
-            crime.executed_at < oldest.executed_at ? crime : oldest,
+            crime.executed_at! < oldest.executed_at! ? crime : oldest,
           )
 
           if (newOldestCrime.id === lastOldestCrimeId) {
@@ -364,7 +364,7 @@ export default function ReportsPage() {
           setCrimes(allCrimes)
           setTotalCrimes(allCrimes.length)
 
-          oldestTimestamp = newOldestCrime.executed_at
+          oldestTimestamp = newOldestCrime.executed_at!
           lastOldestCrimeId = newOldestCrime.id
         } else {
           hasMoreData = false
@@ -558,7 +558,7 @@ export default function ReportsPage() {
               </div>
 
               <div className="bg-card p-3 rounded-lg border border-border/50">
-                <div className="text-xs text-muted-foreground mb-2 font-bold">Status Breakdown</div>
+                <div className="text-xs text-muted-foreground mb-2 font-bold">History</div>
                 <div className="flex flex-wrap gap-3 text-sm">
                   <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground">Planning:</span>
@@ -647,7 +647,7 @@ export default function ReportsPage() {
                   const isExpanded = expandedCrimes.has(crime.name)
                   const metadata = CRIME_METADATA[crime.name]
                   const pieData = []
-                  const colors = []
+                  const colors: string[] = []
 
                   if (crime.successful > 0) {
                     pieData.push({

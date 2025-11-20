@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save } from 'lucide-react'
+import { useRouter } from "next/navigation"
+import { ArrowLeft, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface ThirdPartySettings {
@@ -12,7 +12,7 @@ interface ThirdPartySettings {
     enabled: boolean
     apiKey: string
   }
-  tornStats: {
+  cprTracker: {
     enabled: boolean
     apiKey: string
   }
@@ -24,21 +24,23 @@ interface ThirdPartySettings {
 export default function SettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [settings, setSettings] = useState<ThirdPartySettings>({
+  const defaultSettings: ThirdPartySettings = {
     tornProbability: true,
     crimesHub: true,
     ffScouter: {
       enabled: false,
       apiKey: "",
     },
-    tornStats: {
+    cprTracker: {
       enabled: false,
       apiKey: "",
     },
     yata: {
       enabled: false,
     },
-  })
+  }
+
+  const [settings, setSettings] = useState<ThirdPartySettings>(defaultSettings)
 
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
@@ -47,18 +49,24 @@ export default function SettingsPage() {
       return
     }
 
-    // Load settings from localStorage
     const savedSettings = localStorage.getItem("thirdPartySettings")
     if (savedSettings) {
       try {
-        setSettings(JSON.parse(savedSettings))
+        const parsed = JSON.parse(savedSettings)
+        setSettings({
+          ...defaultSettings,
+          ...parsed,
+          ffScouter: { ...defaultSettings.ffScouter, ...(parsed.ffScouter || {}) },
+          cprTracker: { ...defaultSettings.cprTracker, ...(parsed.cprTracker || {}) },
+          yata: { ...defaultSettings.yata, ...(parsed.yata || {}) },
+        })
       } catch (err) {
         console.error("Error loading settings:", err)
       }
     }
 
     const ffScouterKey = localStorage.getItem("FFSCOUTER_API_KEY")
-    const tornStatsKey = localStorage.getItem("TORNSTATS_API_KEY")
+    const cprTrackerKey = localStorage.getItem("CPR_TRACKER_API_KEY")
 
     if (ffScouterKey) {
       setSettings((prev) => ({
@@ -70,12 +78,12 @@ export default function SettingsPage() {
       }))
     }
 
-    if (tornStatsKey) {
+    if (cprTrackerKey) {
       setSettings((prev) => ({
         ...prev,
-        tornStats: {
-          enabled: prev.tornStats.enabled,
-          apiKey: tornStatsKey || prev.tornStats.apiKey,
+        cprTracker: {
+          enabled: prev.cprTracker.enabled,
+          apiKey: cprTrackerKey || prev.cprTracker.apiKey,
         },
       }))
     }
@@ -92,10 +100,10 @@ export default function SettingsPage() {
       localStorage.removeItem("FFSCOUTER_API_KEY")
     }
 
-    if (settings.tornStats.enabled && settings.tornStats.apiKey) {
-      localStorage.setItem("TORNSTATS_API_KEY", settings.tornStats.apiKey)
+    if (settings.cprTracker.enabled && settings.cprTracker.apiKey) {
+      localStorage.setItem("CPR_TRACKER_API_KEY", settings.cprTracker.apiKey)
     } else {
-      localStorage.removeItem("TORNSTATS_API_KEY")
+      localStorage.removeItem("CPR_TRACKER_API_KEY")
     }
 
     toast({
@@ -139,9 +147,7 @@ export default function SettingsPage() {
                       <h3 className="font-semibold text-foreground">Torn Probability API</h3>
                       <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">Required</span>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Fetches OC role weights and overall success %
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-2">Fetches OC role weights and overall success %</p>
                     <a
                       href="https://tornprobability.com:3000"
                       target="_blank"
@@ -236,51 +242,51 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              {/* TornStats */}
+              {/* CPR Tracker */}
               <div className="border border-border rounded-lg p-4 bg-card/50">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-foreground">TornStats</h3>
+                      <h3 className="font-semibold text-foreground">CPR Tracker</h3>
                       <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">Optional</span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">
-                      Recommend members for open OC roles based on CPR
+                      Recommend members for open OC roles based on CPR (provided by abhinavkm)
                     </p>
                     <a
-                      href="https://www.tornstats.com"
+                      href="https://ufd.abhinavkm.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
                     >
-                      https://www.tornstats.com
+                      https://ufd.abhinavkm.com
                     </a>
                   </div>
                   <input
                     type="checkbox"
-                    checked={settings.tornStats.enabled}
+                    checked={settings.cprTracker.enabled}
                     onChange={(e) =>
                       setSettings((prev) => ({
                         ...prev,
-                        tornStats: { ...prev.tornStats, enabled: e.target.checked },
+                        cprTracker: { ...prev.cprTracker, enabled: e.target.checked },
                       }))
                     }
                     className="mt-1 h-5 w-5 rounded border-border bg-background cursor-pointer"
                   />
                 </div>
-                {settings.tornStats.enabled && (
+                {settings.cprTracker.enabled && (
                   <div className="mt-3 pt-3 border-t border-border">
-                    <label className="block text-sm font-medium text-foreground mb-2">API Key</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">Public API Key</label>
                     <input
                       type="password"
-                      value={settings.tornStats.apiKey}
+                      value={settings.cprTracker.apiKey}
                       onChange={(e) =>
                         setSettings((prev) => ({
                           ...prev,
-                          tornStats: { ...prev.tornStats, apiKey: e.target.value },
+                          cprTracker: { ...prev.cprTracker, apiKey: e.target.value },
                         }))
                       }
-                      placeholder="Enter TornStats API key"
+                      placeholder="Enter CPR Tracker public API key"
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>

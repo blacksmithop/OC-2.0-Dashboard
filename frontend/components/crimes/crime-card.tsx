@@ -2,7 +2,7 @@
 
 import type { Crime, Member } from "@/types/crime"
 import { useState } from "react"
-import { RefreshCw, Microscope, Sparkles } from 'lucide-react'
+import { RefreshCw, Microscope, Sparkles } from "lucide-react"
 import CrimeSlot from "./crime-slot"
 import CrimeRewards from "./crime-rewards"
 import CrimeTimestamps from "./crime-timestamps"
@@ -24,7 +24,8 @@ interface CrimeCardProps {
   factionId: number | null
   roleWeights: Awaited<ReturnType<typeof import("@/lib/role-weights").getRoleWeights>> | null
   membersNotInOCSet: Set<number>
-  tornStatsEnabled: boolean
+  cprTrackerData: any
+  cprTrackerEnabled: boolean
   currentTime: number
   canReload: boolean
 }
@@ -41,7 +42,8 @@ export default function CrimeCard({
   factionId,
   roleWeights,
   membersNotInOCSet,
-  tornStatsEnabled,
+  cprTrackerData,
+  cprTrackerEnabled,
   currentTime,
   canReload,
 }: CrimeCardProps) {
@@ -56,9 +58,10 @@ export default function CrimeCard({
   const simulatorUrl = getSimulatorUrl(crime.name)
   const showSimulator = ["Recruiting", "Planning"].includes(crime.status)
   const showRoleWeights = ["Recruiting", "Planning"].includes(crime.status) && roleWeights
-  const showPredictButton = crime.status === 'Planning' && 
+  const showPredictButton =
+    crime.status === "Planning" &&
     SUPPORTED_SCENARIOS.includes(crime.name) &&
-    crime.slots.every(slot => slot.user && slot.checkpoint_pass_rate !== undefined)
+    crime.slots.every((slot) => slot.user && slot.checkpoint_pass_rate !== undefined)
 
   const copyToClipboard = (id: number) => {
     navigator.clipboard.writeText(id.toString())
@@ -70,7 +73,7 @@ export default function CrimeCard({
     setIsPredicting(true)
 
     try {
-      const parameters = crime.slots.map(slot => slot.checkpoint_pass_rate || 0)
+      const parameters = crime.slots.map((slot) => slot.checkpoint_pass_rate || 0)
       const result = await getSuccessPrediction(crime.name, parameters)
       setPrediction(result)
     } finally {
@@ -145,15 +148,15 @@ export default function CrimeCard({
                 {isPredicting ? "Predicting..." : "Predict"}
               </button>
             )}
-            {prediction && crime.status === 'Planning' && (
+            {prediction && crime.status === "Planning" && (
               <span
                 className={`text-xs px-2 py-0.5 rounded border font-bold flex items-center gap-1 ${
                   prediction.supported
                     ? prediction.successChance >= 80
                       ? "bg-green-500/20 text-green-400 border-green-500/40"
                       : prediction.successChance >= 60
-                      ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/40"
-                      : "bg-red-500/20 text-red-400 border-red-500/40"
+                        ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/40"
+                        : "bg-red-500/20 text-red-400 border-red-500/40"
                     : "bg-gray-500/10 text-gray-500 border-gray-500/30"
                 }`}
                 title={prediction.supported ? "Predicted success chance" : "Prediction not supported for this scenario"}
@@ -165,9 +168,7 @@ export default function CrimeCard({
           <div className="flex items-center gap-3 text-xs flex-wrap">
             <span className="text-foreground">
               <span className="text-muted-foreground">Diff:</span>{" "}
-              <span className={`font-bold text-base ${getDifficultyColor(crime.difficulty)}`}>
-                {crime.difficulty}
-              </span>
+              <span className={`font-bold text-base ${getDifficultyColor(crime.difficulty)}`}>{crime.difficulty}</span>
             </span>
             <span className="text-muted-foreground">•</span>
             <span className="text-foreground">
@@ -179,9 +180,7 @@ export default function CrimeCard({
             {crime.pass_rate !== undefined && (
               <>
                 <span className="text-muted-foreground">•</span>
-                <span
-                  className={`px-2 py-0.5 rounded border font-bold text-sm ${getPassRateColor(crime.pass_rate)}`}
-                >
+                <span className={`px-2 py-0.5 rounded border font-bold text-sm ${getPassRateColor(crime.pass_rate)}`}>
                   {crime.pass_rate}%
                 </span>
               </>
@@ -193,12 +192,7 @@ export default function CrimeCard({
       <CrimeTimestamps crime={crime} currentTime={currentTime} />
 
       {crime.status === "Successful" && crime.rewards && (
-        <CrimeRewards 
-          rewards={crime.rewards} 
-          items={items} 
-          onItemClick={onItemClick}
-          memberMap={memberMap}
-        />
+        <CrimeRewards rewards={crime.rewards} items={items} onItemClick={onItemClick} memberMap={memberMap} />
       )}
 
       <div className="pt-1.5 border-t border-border/30">
@@ -206,9 +200,10 @@ export default function CrimeCard({
         <div className="space-y-1">
           {crime.slots.map((slot, idx) => {
             const roleWeight = showRoleWeights ? getRoleWeight(crime.name, slot.position) : null
-            const isHighRiskRole = roleWeight && slot.user && slot.checkpoint_pass_rate !== undefined 
-              ? shouldAlertLowCPR(slot.checkpoint_pass_rate, roleWeight, minPassRate)
-              : false
+            const isHighRiskRole =
+              roleWeight && slot.user && slot.checkpoint_pass_rate !== undefined
+                ? shouldAlertLowCPR(slot.checkpoint_pass_rate, roleWeight, minPassRate)
+                : false
 
             return (
               <CrimeSlot
@@ -226,7 +221,8 @@ export default function CrimeCard({
                 roleWeight={roleWeight}
                 isHighRiskRole={isHighRiskRole}
                 membersNotInOCSet={membersNotInOCSet}
-                tornStatsEnabled={tornStatsEnabled}
+                cprTrackerData={cprTrackerData}
+                cprTrackerEnabled={cprTrackerEnabled}
               />
             )
           })}

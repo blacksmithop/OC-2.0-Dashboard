@@ -17,6 +17,8 @@ interface CrimesListProps {
   onCrimeReload?: (crimeId: number) => Promise<Crime | null>
   minPassRate: number
   factionId: number | null
+  cprTrackerData: any
+  cprTrackerEnabled: boolean
 }
 
 export default function CrimesList({
@@ -27,6 +29,8 @@ export default function CrimesList({
   onCrimeReload,
   minPassRate,
   factionId,
+  cprTrackerData,
+  cprTrackerEnabled,
 }: CrimesListProps) {
   const [collapsedStatus, setCollapsedStatus] = useState<Set<string>>(new Set(STATUS_ORDER))
   const [selectedItem, setSelectedItem] = useState<any>(null)
@@ -38,48 +42,13 @@ export default function CrimesList({
   const observerRef = useRef<{ [key: string]: IntersectionObserver | null }>({})
   const loadMoreRef = useRef<{ [key: string]: HTMLDivElement | null }>({})
   const [roleWeights, setRoleWeights] = useState<Awaited<ReturnType<typeof getRoleWeights>> | null>(null)
-  const [tornStatsEnabled, setTornStatsEnabled] = useState(false)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now() / 1000)
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    getRoleWeights().then(setRoleWeights)
-  }, [])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const settings = localStorage.getItem('thirdPartySettings')
-      if (settings) {
-        try {
-          const parsed = JSON.parse(settings)
-          setTornStatsEnabled(parsed.tornStats?.enabled || false)
-        } catch (e) {
-          // Ignore
-        }
-      }
-    }
-  }, [])
-
-  const memberMap = useMemo(() => {
-    const map: { [key: number]: string } = {}
-    members.forEach((member) => {
-      map[member.id] = member.name
-    })
-    return map
-  }, [members])
-
   const membersNotInOCSet = useMemo(() => {
-    const excludedPositions = ['Recruit']
-    const excludedStates = ['Hospital', 'Jail', 'Fallen']
-    
+    const excludedPositions = ["Recruit"]
+    const excludedStates = ["Hospital", "Jail", "Fallen"]
+
     const membersInCrimes = new Set<number>()
     crimes
-      .filter((crime) => crime.status === 'Planning' || crime.status === 'Recruiting')
+      .filter((crime) => crime.status === "Planning" || crime.status === "Recruiting")
       .forEach((crime) => {
         crime.slots.forEach((slot) => {
           if (slot.user?.id) {
@@ -87,7 +56,7 @@ export default function CrimesList({
           }
         })
       })
-    
+
     return new Set(
       members
         .filter((member) => {
@@ -97,7 +66,7 @@ export default function CrimesList({
           if (membersInCrimes.has(member.id)) return false
           return true
         })
-        .map((member) => member.id)
+        .map((member) => member.id),
     )
   }, [members, crimes])
 
@@ -110,8 +79,8 @@ export default function CrimesList({
   const crimesGrouped = useMemo(() => {
     const groups: { [key: string]: Crime[] } = {}
     const originalCounts: { [key: string]: number } = {}
-    
-    STATUS_ORDER.forEach(status => {
+
+    STATUS_ORDER.forEach((status) => {
       groups[status] = []
       originalCounts[status] = 0
     })
@@ -152,12 +121,23 @@ export default function CrimesList({
   }, [crimes, sortBy, filterAtRisk, minPassRate])
 
   useEffect(() => {
-    const initialVisible: { [key: string]: number } = {}
-    Object.keys(crimesGrouped.groups).forEach((status) => {
-      initialVisible[status] = Math.min(20, crimesGrouped.groups[status].length)
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now() / 1000)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    getRoleWeights().then(setRoleWeights)
+  }, [])
+
+  const memberMap = useMemo(() => {
+    const map: { [key: number]: string } = {}
+    members.forEach((member) => {
+      map[member.id] = member.name
     })
-    setVisibleCrimes(initialVisible)
-  }, [crimesGrouped])
+    return map
+  }, [members])
 
   const setupObserver = useCallback(
     (status: string) => {
@@ -286,7 +266,8 @@ export default function CrimesList({
                     factionId={factionId}
                     roleWeights={roleWeights}
                     membersNotInOCSet={membersNotInOCSet}
-                    tornStatsEnabled={tornStatsEnabled}
+                    cprTrackerData={cprTrackerData}
+                    cprTrackerEnabled={cprTrackerEnabled}
                     currentTime={currentTime}
                     canReload={true}
                   />

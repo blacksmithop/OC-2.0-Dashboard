@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState, useRef, useMemo } from "react"
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw, BarChart3 } from 'lucide-react'
+import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw, BarChart3 } from "lucide-react"
 import CrimesList from "@/components/crimes/crimes-list"
 import CrimeSummary from "@/components/crimes/crime-summary"
 import { fetchAndCacheItems } from "@/lib/cache/items-cache"
@@ -17,6 +17,7 @@ import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 import type { Crime, Member } from "@/types/crime"
 import { DATE_FILTER_OPTIONS } from "@/constants/date-filters"
 import { filterCrimesByDateRange } from "@/lib/crime-filters"
+import { getCPRTrackerData, type CPRTrackerData } from "@/lib/cpr-tracker"
 
 export default function CrimesPage() {
   const router = useRouter()
@@ -31,15 +32,15 @@ export default function CrimesPage() {
   const [filteredMemberId, setFilteredMemberId] = useState<number | null>(null)
   const [factionId, setFactionId] = useState<number | null>(null)
   const [minPassRate, setMinPassRate] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('minPassRate')
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("minPassRate")
       return saved ? Number.parseInt(saved) : 65
     }
     return 65
   })
   const [dateFilter, setDateFilter] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('crimesDateFilter')
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("crimesDateFilter")
       return saved ? Number.parseInt(saved) : 0
     }
     return 0
@@ -48,13 +49,15 @@ export default function CrimesPage() {
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null)
   const historicalCrimesLengthRef = useRef(0)
+  const [cprTrackerData, setCprTrackerData] = useState<CPRTrackerData | null>(null)
+  const [cprTrackerEnabled, setCprTrackerEnabled] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem('minPassRate', minPassRate.toString())
+    localStorage.setItem("minPassRate", minPassRate.toString())
   }, [minPassRate])
 
   useEffect(() => {
-    localStorage.setItem('crimesDateFilter', dateFilter.toString())
+    localStorage.setItem("crimesDateFilter", dateFilter.toString())
   }, [dateFilter])
 
   useEffect(() => {
@@ -69,10 +72,15 @@ export default function CrimesPage() {
 
     loadHistoricalCrimes()
 
+    loadCPRTrackerData(apiKey)
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "factionHistoricalCrimes") {
         console.log("[v0] Historical crimes updated from another tab/component")
         loadHistoricalCrimes()
+      }
+      if (e.key === "thirdPartySettings" || e.key === "CPR_TRACKER_API_KEY") {
+        loadCPRTrackerData(apiKey)
       }
     }
 
@@ -113,6 +121,15 @@ export default function CrimesPage() {
     }
   }, [searchParams])
 
+  useEffect(() => {
+    if (factionId) {
+      const apiKey = localStorage.getItem("factionApiKey")
+      if (apiKey) {
+        loadCPRTrackerData(apiKey)
+      }
+    }
+  }, [factionId])
+
   const loadFromStoredData = (apiKey: string) => {
     console.log("[v0] Loading from stored data")
     setIsLoading(true)
@@ -145,12 +162,14 @@ export default function CrimesPage() {
         }
       }
 
-      fetchAndCacheMembers(apiKey).then(membersData => {
-        setMembers(Array.from(membersData.values()))
-        console.log(`[v0] Loaded ${membersData.size} members from cache`)
-      }).catch(e => {
-        console.error("[v0] Failed to load members:", e)
-      })
+      fetchAndCacheMembers(apiKey)
+        .then((membersData) => {
+          setMembers(Array.from(membersData.values()))
+          console.log(`[v0] Loaded ${membersData.size} members from cache`)
+        })
+        .catch((e) => {
+          console.error("[v0] Failed to load members:", e)
+        })
 
       // Load historical crimes
       const cached = localStorage.getItem("factionHistoricalCrimes")
@@ -210,9 +229,12 @@ export default function CrimesPage() {
       const membersData = await fetchAndCacheMembers(apiKey)
       setMembers(Array.from(membersData.values()))
 
-      const crimesRes = await fetch("https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes", {
-        headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
-      })
+      const crimesRes = await fetch(
+        "https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes",
+        {
+          headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
+        },
+      )
 
       if (!crimesRes.ok) {
         await handleApiError(crimesRes, "/faction/crimes")
@@ -379,6 +401,27 @@ export default function CrimesPage() {
     }
   }
 
+  const loadCPRTrackerData = async (apiKey: string) => {
+    const settings = localStorage.getItem("thirdPartySettings")
+    if (!settings) return
+
+    try {
+      const parsed = JSON.parse(settings)
+      setCprTrackerEnabled(parsed.cprTracker?.enabled || false)
+
+      if (parsed.cprTracker?.enabled && parsed.cprTracker?.apiKey && factionId) {
+        console.log("[v0] Loading CPR Tracker data")
+        const data = await getCPRTrackerData(parsed.cprTracker.apiKey, factionId)
+        setCprTrackerData(data)
+        if (data) {
+          console.log(`[v0] Loaded CPR data for ${Object.keys(data.members).length} members`)
+        }
+      }
+    } catch (e) {
+      console.error("[v0] Failed to load CPR Tracker settings:", e)
+    }
+  }
+
   const filteredCrimes = filteredMemberId
     ? crimes.filter((crime) => crime.slots.some((slot) => slot.user?.id === filteredMemberId))
     : crimes
@@ -391,7 +434,7 @@ export default function CrimesPage() {
     console.log("[v0] Member filter changed to:", memberId)
     setSelectedMemberId(memberId)
     setFilteredMemberId(memberId)
-    
+
     if (memberId) {
       router.push(`/dashboard/crimes?member=${memberId}`)
     } else {
@@ -412,13 +455,13 @@ export default function CrimesPage() {
 
   const membersNotInOC = useMemo(() => {
     // Filter positions to exclude
-    const excludedPositions = ['Recruit']
-    const excludedStates = ['Hospital', 'Jail', 'Fallen']
-    
+    const excludedPositions = ["Recruit"]
+    const excludedStates = ["Hospital", "Jail", "Fallen"]
+
     // Get member IDs from Planning and Recruiting crimes
     const membersInCrimes = new Set<number>()
     crimes
-      .filter((crime) => crime.status === 'Planning' || crime.status === 'Recruiting')
+      .filter((crime) => crime.status === "Planning" || crime.status === "Recruiting")
       .forEach((crime) => {
         crime.slots.forEach((slot) => {
           if (slot.user?.id) {
@@ -426,24 +469,25 @@ export default function CrimesPage() {
           }
         })
       })
-    
+
     // Filter members not in OCs
-    return members.filter((member) => {
-      // Exclude by position
-      if (excludedPositions.includes(member.position)) return false
-      
-      // Exclude by status
-      if (excludedStates.includes(member.status?.state)) return false
-      
-      // Primary check: is_in_oc field
-      if (member.is_in_oc) return false
-      
-      // Additional validation: check if in Planning/Recruiting crimes
-      if (membersInCrimes.has(member.id)) return false
-      
-      return true
-    })
-    .sort((a, b) => b.last_action.timestamp - a.last_action.timestamp)
+    return members
+      .filter((member) => {
+        // Exclude by position
+        if (excludedPositions.includes(member.position)) return false
+
+        // Exclude by status
+        if (excludedStates.includes(member.status?.state)) return false
+
+        // Primary check: is_in_oc field
+        if (member.is_in_oc) return false
+
+        // Additional validation: check if in Planning/Recruiting crimes
+        if (membersInCrimes.has(member.id)) return false
+
+        return true
+      })
+      .sort((a, b) => b.last_action.timestamp - a.last_action.timestamp)
   }, [members, crimes])
 
   if (isLoading) {
@@ -565,8 +609,10 @@ export default function CrimesPage() {
               onChange={(e) => setDateFilter(Number.parseInt(e.target.value))}
               className="px-3 py-2 bg-card border-2 border-border rounded-lg text-foreground focus:border-primary focus:outline-none"
             >
-              {DATE_FILTER_OPTIONS.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+              {DATE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </select>
           </div>
@@ -584,7 +630,7 @@ export default function CrimesPage() {
               </button>
             </div>
           )}
-          
+
           <CrimeSummary
             crimes={dateFilteredCrimes}
             items={items}
@@ -599,6 +645,8 @@ export default function CrimesPage() {
             onCrimeReload={handleReloadCrime}
             minPassRate={minPassRate}
             factionId={factionId}
+            cprTrackerData={cprTrackerData}
+            cprTrackerEnabled={cprTrackerEnabled}
           />
         </div>
       </main>

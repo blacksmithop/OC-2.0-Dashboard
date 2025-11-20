@@ -200,6 +200,51 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
         </div>
       )}
 
+      {/* Items Gained section */}
+      {summary.itemsGained.length > 0 && (
+        <div className="bg-card rounded-lg border border-border/50">
+          <button
+            onClick={() => setIsItemsExpanded(!isItemsExpanded)}
+            className="w-full flex items-center justify-between p-3 transition-all hover:bg-primary/5"
+          >
+            <div className="text-xs text-muted-foreground font-bold">
+              Items Gained ({summary.itemsGained.reduce((acc, item) => acc + item.quantity, 0)})
+            </div>
+            <ChevronDown
+              size={16}
+              className={`transition-transform duration-300 text-muted-foreground ${isItemsExpanded ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {isItemsExpanded && (
+            <div className="px-3 pb-3 pt-0 animate-in fade-in duration-200">
+              <div className="flex flex-wrap gap-2">
+                {summary.itemsGained.map((itemData, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 bg-purple-500/20 border border-purple-500/30 px-3 py-1.5 rounded-md"
+                  >
+                    <button onClick={() => setSelectedItem(itemData.item)} className="hover:opacity-80 shrink-0">
+                      <img
+                        src={
+                          itemData.item.image ||
+                          `/placeholder.svg?height=20&width=20&query=${encodeURIComponent(itemData.item.name) || "/placeholder.svg"}`
+                        }
+                        alt={itemData.item.name}
+                        className="w-5 h-5 rounded"
+                      />
+                    </button>
+                    <span className="text-sm text-purple-300 whitespace-nowrap">
+                      {itemData.item.name} ({itemData.quantity}) - {formatCurrency(itemData.totalValue)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Items Needed section */}
       {summary.itemsNeeded.length > 0 && summary.itemsNeeded.some(item => item.available > 0) && (
         <div className="bg-card rounded-lg border border-border/50">
@@ -208,7 +253,7 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
             className="w-full flex items-center justify-between p-3 transition-all hover:bg-primary/5"
           >
             <div className="text-xs text-muted-foreground font-bold">
-              Items Needed for Planning ({summary.itemsNeeded.reduce((acc, item) => acc + item.needed, 0)})
+              Items needed ({summary.itemsNeeded.reduce((acc, item) => acc + item.needed, 0)})
             </div>
             <ChevronDown
               size={16}
@@ -257,54 +302,9 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
         </div>
       )}
 
-      {/* Items Gained section */}
-      {summary.itemsGained.length > 0 && (
-        <div className="bg-card rounded-lg border border-border/50">
-          <button
-            onClick={() => setIsItemsExpanded(!isItemsExpanded)}
-            className="w-full flex items-center justify-between p-3 transition-all hover:bg-primary/5"
-          >
-            <div className="text-xs text-muted-foreground font-bold">
-              Items Gained ({summary.itemsGained.reduce((acc, item) => acc + item.quantity, 0)})
-            </div>
-            <ChevronDown
-              size={16}
-              className={`transition-transform duration-300 text-muted-foreground ${isItemsExpanded ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {isItemsExpanded && (
-            <div className="px-3 pb-3 pt-0 animate-in fade-in duration-200">
-              <div className="flex flex-wrap gap-2">
-                {summary.itemsGained.map((itemData, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 bg-purple-500/20 border border-purple-500/30 px-3 py-1.5 rounded-md"
-                  >
-                    <button onClick={() => setSelectedItem(itemData.item)} className="hover:opacity-80 shrink-0">
-                      <img
-                        src={
-                          itemData.item.image ||
-                          `/placeholder.svg?height=20&width=20&query=${encodeURIComponent(itemData.item.name) || "/placeholder.svg"}`
-                        }
-                        alt={itemData.item.name}
-                        className="w-5 h-5 rounded"
-                      />
-                    </button>
-                    <span className="text-sm text-purple-300 whitespace-nowrap">
-                      {itemData.item.name} ({itemData.quantity}) - {formatCurrency(itemData.totalValue)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Status Breakdown */}
+      {/* Histroy */}
       <div className="bg-card p-3 rounded-lg border border-border/50">
-        <div className="text-xs text-muted-foreground mb-2 font-bold">Status Breakdown</div>
+        <div className="text-xs text-muted-foreground mb-2 font-bold">History</div>
         <div className="flex flex-wrap gap-3 text-sm">
           <div className="flex items-center gap-1.5">
             <span className="text-muted-foreground">Planning:</span>

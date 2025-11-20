@@ -1,53 +1,9 @@
 "use client"
 
-import { ChevronDown, ChevronUp } from 'lucide-react'
-import type { TornItem } from "@/lib/items-cache"
+import { ChevronDown, ChevronUp } from "lucide-react"
+import type { TornItem } from "@/lib/cache/items-cache"
+import type { GroupedLog } from "@/lib/armory/types"
 import { useState } from "react"
-
-interface ArmoryNewsItem {
-  uuid: string
-  timestamp: number
-  news: string
-  user: {
-    name: string
-    id: number
-  }
-  action: "used" | "filled" | "retrieved" | "deposited" | "gave" | "loaned" | "returned"
-  target?: {
-    name: string
-    id: number
-  }
-  item: {
-    name: string
-    quantity: number
-  }
-  crimeScenario?: {
-    crime_id: number
-    scenario: string
-    role: string
-    percentage: number
-  }
-}
-
-interface GroupedLog {
-  user: {
-    name: string
-    id: number
-  }
-  action: string
-  item: {
-    name: string
-    quantity: number
-  }
-  target?: {
-    name: string
-    id: number
-  }
-  timestamp: number
-  count: number
-  crimeScenario?: ArmoryNewsItem["crimeScenario"]
-  originalLogs: ArmoryNewsItem[]
-}
 
 interface ArmoryLogCardProps {
   log: GroupedLog

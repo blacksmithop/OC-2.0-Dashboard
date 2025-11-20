@@ -1,6 +1,6 @@
 "use client"
 
-import { RefreshCw, Package, Settings } from 'lucide-react'
+import { RefreshCw, Package, Settings } from "lucide-react"
 
 interface ArmoryStatsProps {
   totalLogs: number
@@ -24,7 +24,7 @@ export default function ArmoryStats({
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h2 className="text-xl font-bold text-foreground">Total Armory Logs</h2>
+            <h2 className="text-xl font-bold text-foreground">Armory Logs</h2>
             <button
               onClick={onConfigClick}
               className="p-1.5 hover:bg-accent rounded-lg transition-colors"
@@ -33,8 +33,17 @@ export default function ArmoryStats({
               <Settings size={18} className="text-muted-foreground hover:text-foreground" />
             </button>
           </div>
-          <div className="text-4xl font-bold text-primary">{totalLogs}</div>
-          <div className="text-xs text-muted-foreground mt-1">Max fetch: {maxFetchCount} logs</div>
+          <div className="flex items-baseline gap-3">
+            <div>
+              <div className="text-4xl font-bold text-primary">{totalLogs.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">Loaded</div>
+            </div>
+            <div className="text-2xl text-muted-foreground">/</div>
+            <div>
+              <div className="text-2xl font-semibold text-muted-foreground">{maxFetchCount.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">Max Fetch</div>
+            </div>
+          </div>
         </div>
         <button
           onClick={onFetch}
