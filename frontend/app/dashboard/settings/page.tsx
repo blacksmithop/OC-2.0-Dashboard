@@ -251,7 +251,9 @@ export default function SettingsPage() {
                       <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">Optional</span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">
-                      Recommend members for open OC roles based on CPR (provided by abhinavkm)
+                      Fetch CPR data for members in your faction. Please use the related <a href="https://greasyfork.org/en/scripts/556379-torn-faction-cpr-tracker" target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors">userscript</a>
                     </p>
                     <a
                       href="https://ufd.abhinavkm.com"
