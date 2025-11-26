@@ -17,7 +17,7 @@ import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 import type { Crime, Member } from "@/types/crime"
 import { filterCrimesByDateRange } from "@/lib/crimes/filters"
 import { getCPRTrackerData, type CPRTrackerData } from "@/lib/integration/cpr-tracker"
-import { DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export default function CrimesPage() {
   const router = useRouter()
@@ -499,51 +499,43 @@ export default function CrimesPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="p-2 hover:bg-accent rounded-lg transition-colors border border-border"
-              title="Menu"
-            >
-              <MoreVertical size={20} />
-            </button>
-            {dropdownOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                <DropdownMenuContent
-                  align="end"
-                  className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden"
+            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <button className="p-2 hover:bg-accent rounded-lg transition-colors border border-border" title="Menu">
+                  <MoreVertical size={20} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => router.push("/dashboard/scope-usage")}>
+                  <BarChart3 size={18} />
+                  Scope Usage
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/dashboard/faction")}>
+                  <Info size={18} />
+                  Faction
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setDropdownOpen(false)
+                    setResetDialogOpen(true)
+                  }}
+                  disabled={refreshing}
                 >
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/scope-usage")}>
-                    <BarChart3 size={18} />
-                    Scope Usage
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/faction")}>
-                    <Info size={18} />
-                    Faction
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setDropdownOpen(false)
-                      setResetDialogOpen(true)
-                    }}
-                    disabled={refreshing}
-                  >
-                    <RotateCcw size={18} />
-                    Reset
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      handleLogout()
-                      setDropdownOpen(false)
-                    }}
-                    className="hover:text-destructive"
-                  >
-                    <LogOut size={18} />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </>
-            )}
+                  <RotateCcw size={18} />
+                  Reset
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    handleLogout()
+                    setDropdownOpen(false)
+                  }}
+                  className="hover:text-destructive"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
