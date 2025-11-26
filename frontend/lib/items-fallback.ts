@@ -1,5 +1,3 @@
-// We construct item data from known medical items or use Torn's direct URLs
-
 export interface ItemData {
   id: number
   name: string
@@ -15,7 +13,6 @@ const KNOWN_MEDICAL_ITEMS: Record<number, { name: string; type: string }> = {
   67: { name: "First Aid Kit", type: "Medical" },
   68: { name: "Small First Aid Kit", type: "Medical" },
   69: { name: "First Aid Kit", type: "Medical" },
-  70: { name: "Specialist First Aid Kit", type: "Medical" },
   203: { name: "Morphine", type: "Medical" },
   361: { name: "Neumune Tablet", type: "Medical" },
   731: { name: "Empty Blood Bag", type: "Medical" },
@@ -28,7 +25,6 @@ const KNOWN_MEDICAL_ITEMS: Record<number, { name: string; type: string }> = {
   738: { name: "Blood Bag : O+", type: "Medical" },
   739: { name: "Blood Bag : O-", type: "Medical" },
   1012: { name: "Blood Bag : Irradiated", type: "Medical" },
-  1040: { name: "Specialist Bandage", type: "Medical" },
   1363: { name: "Ipecac Syrup", type: "Medical" },
 }
 

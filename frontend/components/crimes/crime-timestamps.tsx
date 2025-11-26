@@ -1,5 +1,5 @@
 import type { Crime } from "@/types/crime"
-import { formatDate, formatTime } from "@/lib/crimes/crime-formatters"
+import { formatDate, formatTime } from "@/lib/crimes/formatters"
 
 interface CrimeTimestampsProps {
   crime: Crime

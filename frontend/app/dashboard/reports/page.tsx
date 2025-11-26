@@ -23,10 +23,10 @@ import { crimeApiCache } from "@/lib/cache/crime-api-cache"
 import { handleFullLogout } from "@/lib/logout-handler"
 import type { Crime } from "@/types/crime"
 import { DATE_FILTER_OPTIONS } from "@/constants/date-filters"
-import { filterCrimesByDateRange } from "@/lib/crimes/crime-filters"
-import { formatCurrency } from "@/lib/crimes/crime-formatters"
-import { getDifficultyColor } from "@/lib/crimes/crime-colors"
-import { CRIME_METADATA } from "@/lib/crimes/crime-metadata"
+import { filterCrimesByDateRange } from "@/lib/crimes/filters"
+import { formatCurrency } from "@/lib/crimes/formatters"
+import { getDifficultyColor } from "@/lib/crimes/colors"
+import { CRIME_METADATA } from "@/lib/crimes/metadata"
 
 interface CrimesResponse {
   crimes: Record<string, Crime>

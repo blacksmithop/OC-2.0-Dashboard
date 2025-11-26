@@ -15,9 +15,9 @@ import { clearAllCache } from "@/lib/cache/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 import type { Crime, Member } from "@/types/crime"
-import { DATE_FILTER_OPTIONS } from "@/constants/date-filters"
-import { filterCrimesByDateRange } from "@/lib/crimes/crime-filters"
+import { filterCrimesByDateRange } from "@/lib/crimes/filters"
 import { getCPRTrackerData, type CPRTrackerData } from "@/lib/integration/cpr-tracker"
+import { DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 
 export default function CrimesPage() {
   const router = useRouter()
@@ -51,14 +51,7 @@ export default function CrimesPage() {
   const historicalCrimesLengthRef = useRef(0)
   const [cprTrackerData, setCprTrackerData] = useState<CPRTrackerData | null>(null)
   const [cprTrackerEnabled, setCprTrackerEnabled] = useState(false)
-
-  useEffect(() => {
-    localStorage.setItem("minPassRate", minPassRate.toString())
-  }, [minPassRate])
-
-  useEffect(() => {
-    localStorage.setItem("crimesDateFilter", dateFilter.toString())
-  }, [dateFilter])
+  const [memberMap, setMemberMap] = useState<Map<number, Member>>(new Map())
 
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
@@ -165,6 +158,11 @@ export default function CrimesPage() {
       fetchAndCacheMembers(apiKey)
         .then((membersData) => {
           setMembers(Array.from(membersData.values()))
+          const memberMap = new Map<number, Member>()
+          membersData.forEach((member) => {
+            memberMap.set(member.id, member)
+          })
+          setMemberMap(memberMap)
           console.log(`[v0] Loaded ${membersData.size} members from cache`)
         })
         .catch((e) => {
@@ -228,6 +226,11 @@ export default function CrimesPage() {
 
       const membersData = await fetchAndCacheMembers(apiKey)
       setMembers(Array.from(membersData.values()))
+      const memberMap = new Map<number, Member>()
+      membersData.forEach((member) => {
+        memberMap.set(member.id, member)
+      })
+      setMemberMap(memberMap)
 
       const crimesRes = await fetch(
         "https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes",
@@ -330,6 +333,7 @@ export default function CrimesPage() {
       setCrimes([])
       setItems(new Map())
       setMembers([])
+      setMemberMap(new Map())
 
       await fetchData(apiKey)
 
@@ -430,29 +434,6 @@ export default function CrimesPage() {
     return filterCrimesByDateRange(filteredCrimes, dateFilter)
   }, [filteredCrimes, dateFilter])
 
-  const handleMemberFilterChange = (memberId: number | null) => {
-    console.log("[v0] Member filter changed to:", memberId)
-    setSelectedMemberId(memberId)
-    setFilteredMemberId(memberId)
-
-    if (memberId) {
-      router.push(`/dashboard/crimes?member=${memberId}`)
-    } else {
-      router.push("/dashboard/crimes")
-    }
-  }
-
-  const handleClearFilter = () => {
-    console.log("[v0] Clearing filter")
-    setFilteredMemberId(null)
-    setSelectedMemberId(null)
-    router.push("/dashboard/crimes")
-    toast({
-      title: "Filter cleared",
-      description: "Showing all members",
-    })
-  }
-
   const membersNotInOC = useMemo(() => {
     // Filter positions to exclude
     const excludedPositions = ["Recruit"]
@@ -499,9 +480,7 @@ export default function CrimesPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <ResetConfirmationDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen} onConfirm={handleReset} />
-
+    <div className="flex flex-col h-screen bg-background overflow-hidden text-foreground p-4">
       <header className="flex-shrink-0 border-b border-border bg-card p-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -514,12 +493,12 @@ export default function CrimesPage() {
             </button>
             <div>
               <button onClick={() => router.push("/dashboard")} className="hover:opacity-80 transition-opacity">
-                <h1 className="text-3xl font-bold text-foreground">Organized Crimes</h1>
+                <h1 className="text-3xl font-bold">Organized Crimes</h1>
               </button>
               <p className="text-muted-foreground mt-1">View and manage faction operations</p>
             </div>
           </div>
-          <div className="relative">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="p-2 hover:bg-accent rounded-lg transition-colors border border-border"
@@ -530,49 +509,39 @@ export default function CrimesPage() {
             {dropdownOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-                <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
-                  <button
-                    onClick={() => {
-                      router.push("/dashboard/scope-usage")
-                      setDropdownOpen(false)
-                    }}
-                    className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-accent transition-colors"
-                  >
+                <DropdownMenuContent
+                  align="end"
+                  className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden"
+                >
+                  <DropdownMenuItem onClick={() => router.push("/dashboard/scope-usage")}>
                     <BarChart3 size={18} />
                     Scope Usage
-                  </button>
-                  <button
-                    onClick={() => {
-                      router.push("/dashboard/faction")
-                      setDropdownOpen(false)
-                    }}
-                    className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-accent transition-colors border-t border-border"
-                  >
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard/faction")}>
                     <Info size={18} />
                     Faction
-                  </button>
-                  <button
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => {
                       setDropdownOpen(false)
                       setResetDialogOpen(true)
                     }}
                     disabled={refreshing}
-                    className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-accent transition-colors disabled:opacity-50 border-t border-border"
                   >
                     <RotateCcw size={18} />
                     Reset
-                  </button>
-                  <button
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => {
                       handleLogout()
                       setDropdownOpen(false)
                     }}
-                    className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-destructive/10 text-destructive transition-colors border-t border-border"
+                    className="hover:text-destructive"
                   >
                     <LogOut size={18} />
                     Logout
-                  </button>
-                </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
               </>
             )}
           </div>
@@ -580,63 +549,15 @@ export default function CrimesPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-4 flex items-center gap-2">
-            <select
-              value={selectedMemberId ?? ""}
-              onChange={(e) => {
-                const value = e.target.value
-                if (value === "") {
-                  handleMemberFilterChange(null)
-                } else {
-                  handleMemberFilterChange(Number.parseInt(value))
-                }
-              }}
-              className="px-3 py-2 bg-card border-2 border-border rounded-lg text-foreground focus:border-primary focus:outline-none"
-            >
-              <option value="">All Members</option>
-              {members
-                .slice()
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name}
-                  </option>
-                ))}
-            </select>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(Number.parseInt(e.target.value))}
-              className="px-3 py-2 bg-card border-2 border-border rounded-lg text-foreground focus:border-primary focus:outline-none"
-            >
-              {DATE_FILTER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {filteredMemberId && (
-            <div className="mb-4 p-3 bg-primary/10 border border-primary/30 rounded-lg flex items-center justify-between">
-              <span className="text-sm text-foreground">
-                Showing crimes for: <strong>{members.find((m) => m.id === filteredMemberId)?.name}</strong>
-              </span>
-              <button
-                onClick={handleClearFilter}
-                className="text-xs px-2 py-1 bg-background text-foreground hover:text-foreground rounded border border-border hover:border-primary transition-colors"
-              >
-                Clear Filter
-              </button>
-            </div>
-          )}
-
+        <div className="max-w-7xl mx-auto">
           <CrimeSummary
             crimes={dateFilteredCrimes}
             items={items}
             minPassRate={minPassRate}
             onMinPassRateChange={setMinPassRate}
             membersNotInOC={membersNotInOC}
+            allCrimes={crimes}
+            memberMap={memberMap}
           />
           <CrimesList
             crimes={dateFilteredCrimes}
@@ -651,18 +572,7 @@ export default function CrimesPage() {
         </div>
       </main>
 
-      <footer className="flex-shrink-0 border-t border-border bg-card px-6 py-4 z-50">
-        <div className="text-center text-sm">
-          <a
-            href="https://www.torn.com/profiles.php?XID=1712955"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white hover:text-white/80 transition-colors"
-          >
-            © oxiblurr [1712955]
-          </a>
-        </div>
-      </footer>
+      <ResetConfirmationDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen} onConfirm={handleReset} />
     </div>
   )
 }

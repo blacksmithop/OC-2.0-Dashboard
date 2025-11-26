@@ -7,10 +7,10 @@ import CrimeSlot from "./crime-slot"
 import CrimeRewards from "./crime-rewards"
 import CrimeTimestamps from "./crime-timestamps"
 import { canReloadIndividualCrimes } from "@/lib/api-scopes"
-import { getSimulatorUrl } from "@/lib/crimes/crime-simulator-urls"
+import { getSimulatorUrl } from "@/lib/crimes/simulator-urls"
 import { getRoleWeight, shouldAlertLowCPR } from "@/lib/role-weights"
 import { getSuccessPrediction, SUPPORTED_SCENARIOS, type SuccessPrediction } from "@/lib/success-prediction"
-import { getDifficultyColor, getPassRateColor } from "@/lib/crimes/crime-colors"
+import { getDifficultyColor, getPassRateColor } from "@/lib/crimes/colors"
 
 interface CrimeCardProps {
   crime: Crime

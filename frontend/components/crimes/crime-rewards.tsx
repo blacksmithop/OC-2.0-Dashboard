@@ -2,7 +2,7 @@
 
 import type { Rewards } from "@/types/crime"
 import { useState, useEffect } from "react"
-import { formatDateTime } from "@/lib/crimes/crime-formatters"
+import { formatDateTime } from "@/lib/crimes/formatters"
 import { getItemMarketPrice } from "@/lib/marketplace-price"
 
 interface CrimeRewardsProps {

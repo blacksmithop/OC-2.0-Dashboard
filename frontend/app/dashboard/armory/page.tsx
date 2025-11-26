@@ -29,19 +29,13 @@ import {
   saveMaxFetchCount,
 } from "@/lib/armory/utils"
 
-// Define ARMORY_ACTIONS constant
 const ARMORY_ACTIONS = ["Add", "Remove", "Upgrade"]
-
-interface Member {
-  id: number
-  name: string
-}
 
 export default function ArmoryPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  // State management
+
   const [armoryNews, setArmoryNews] = useState<ArmoryNewsItem[]>([])
   const [items, setItems] = useState<Map<number, TornItem>>(new Map())
   const [members, setMembers] = useState<FactionMember[]>([])
@@ -59,7 +53,7 @@ export default function ArmoryPage() {
   const [hasArmoryAccess, setHasArmoryAccess] = useState<boolean>(true)
   const [selectedItemFilter, setSelectedItemFilter] = useState<string>("All Items")
 
-  // Initialize data on mount
+
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
     if (!apiKey) {
@@ -67,11 +61,11 @@ export default function ArmoryPage() {
       return
     }
 
-    // Load configuration
+
     const savedMaxFetch = loadMaxFetchCount()
     setMaxFetchCount(savedMaxFetch)
 
-    // Load data
+
     loadItemsData(apiKey)
     loadMembersData(apiKey)
     loadCachedData()

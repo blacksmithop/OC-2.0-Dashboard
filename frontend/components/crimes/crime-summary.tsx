@@ -1,8 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ChevronDown } from 'lucide-react'
+import { useMemo, useState, useEffect } from "react"
+import { ChevronDown, Send } from "lucide-react"
 import ItemModal from "./item-modal"
+import { Button } from "@/components/ui/button"
+import { sendRequiredItemsWebhook } from "@/lib/integration/discord-webhook"
+import { useToast } from "@/hooks/use-toast"
 
 interface Crime {
   id: number
@@ -14,6 +17,10 @@ interface Crime {
     respect: number
   }
   slots?: Array<{
+    position: string
+    user?: {
+      id: number
+    }
     item_requirement?: {
       id: number
       is_available: boolean
@@ -27,18 +34,60 @@ interface Member {
   position: string
 }
 
+interface RequiredItem {
+  itemId: number
+  itemName: string
+  requiredBy: Array<{
+    memberId: number
+    memberName: string
+    crimeId: number
+    crimeName: string
+    position: string
+  }>
+}
+
 interface CrimeSummaryProps {
   crimes: Crime[]
   items: Map<number, any>
   minPassRate?: number
   onMinPassRateChange?: (value: number) => void
   membersNotInOC?: Member[]
+  allCrimes?: Crime[]
+  memberMap?: Map<number, Member>
 }
 
-export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRateChange, membersNotInOC }: CrimeSummaryProps) {
+export default function CrimeSummary({
+  crimes,
+  items,
+  minPassRate,
+  onMinPassRateChange,
+  membersNotInOC,
+  allCrimes = [],
+  memberMap = new Map(),
+}: CrimeSummaryProps) {
   const [isItemsExpanded, setIsItemsExpanded] = useState(false)
   const [isItemsNeededExpanded, setIsItemsNeededExpanded] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
+  const { toast } = useToast()
+
+  const [discordEnabled, setDiscordEnabled] = useState(false)
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState("")
+  const [sendingWebhook, setSendingWebhook] = useState(false)
+
+  useEffect(() => {
+    const savedSettings = localStorage.getItem("thirdPartySettings")
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings)
+        if (parsed.discord) {
+          setDiscordEnabled(parsed.discord.enabled || false)
+          setDiscordWebhookUrl(parsed.discord.webhookUrl || "")
+        }
+      } catch (err) {
+        console.error("Error loading Discord settings:", err)
+      }
+    }
+  }, [])
 
   const summary = useMemo(() => {
     let totalMoney = 0
@@ -65,7 +114,7 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
           if (slot.item_requirement) {
             const itemId = slot.item_requirement.id
             const itemData = items.get(itemId)
-            
+
             if (itemData) {
               if (itemsNeeded.has(itemId)) {
                 const existing = itemsNeeded.get(itemId)!
@@ -126,6 +175,89 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
     }
   }, [crimes, items])
 
+  const handleSendItemsToDiscord = async (type: "loaded" | "required") => {
+    if (!discordWebhookUrl || !discordEnabled) {
+      toast({
+        title: "Error",
+        description: "Discord webhook is not configured. Please configure it in Settings.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSendingWebhook(true)
+
+    try {
+      const itemsMap = new Map<number, RequiredItem>()
+      const targetCrimes = allCrimes.filter((crime) => ["Planning", "Recruiting"].includes(crime.status))
+
+      targetCrimes.forEach((crime) => {
+        crime.slots?.forEach((slot) => {
+          if (slot.item_requirement) {
+            const isLoaded = slot.item_requirement.is_available
+            const shouldInclude = type === "loaded" ? isLoaded : !isLoaded
+
+            if (shouldInclude && slot.user) {
+              const itemId = slot.item_requirement.id
+              const item = items.get(itemId)
+              const itemName = item?.name || `Item ${itemId}`
+
+              if (!itemsMap.has(itemId)) {
+                itemsMap.set(itemId, {
+                  itemId,
+                  itemName,
+                  requiredBy: [],
+                })
+              }
+
+              itemsMap.get(itemId)!.requiredBy.push({
+                memberId: slot.user.id,
+                memberName: memberMap.get(slot.user.id)?.name || `ID: ${slot.user.id}`,
+                crimeId: crime.id,
+                crimeName: crime.name,
+                position: slot.position,
+              })
+            }
+          }
+        })
+      })
+
+      const itemsList = Array.from(itemsMap.values())
+
+      if (itemsList.length === 0) {
+        toast({
+          title: "No Items",
+          description:
+            type === "loaded" ? "No loaded items found in active OCs" : "No required items missing in active OCs",
+        })
+        return
+      }
+
+      const result = await sendRequiredItemsWebhook(discordWebhookUrl, itemsList, type)
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: `Sent ${itemsList.length} item(s) to Discord`,
+        })
+      } else {
+        toast({
+          title: "Failed",
+          description: result.error || "Failed to send webhook",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      })
+    } finally {
+      setSendingWebhook(false)
+    }
+  }
+
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat().format(num)
   }
@@ -180,9 +312,7 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
 
       {membersNotInOC && membersNotInOC.length > 0 && (
         <div className="bg-card p-3 rounded-lg border border-border/50">
-          <h3 className="text-xs text-muted-foreground font-bold mb-2">
-            Not in OC ({membersNotInOC.length})
-          </h3>
+          <h3 className="text-xs text-muted-foreground font-bold mb-2">Not in OC ({membersNotInOC.length})</h3>
           <div className="flex flex-wrap gap-2">
             {membersNotInOC.map((member) => (
               <a
@@ -246,7 +376,7 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
       )}
 
       {/* Items Needed section */}
-      {summary.itemsNeeded.length > 0 && summary.itemsNeeded.some(item => item.available > 0) && (
+      {summary.itemsNeeded.length > 0 && summary.itemsNeeded.some((item) => item.available > 0) && (
         <div className="bg-card rounded-lg border border-border/50">
           <button
             onClick={() => setIsItemsNeededExpanded(!isItemsNeededExpanded)}
@@ -270,7 +400,7 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
                     <div
                       key={index}
                       className="group relative flex items-center gap-2 bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-md"
-                      title={`${itemData.item.name}: ${itemData.available}/${itemData.needed} available${itemData.item.value?.market_price ? ` - ${formatCurrency(itemData.item.value.market_price)} each` : ''}`}
+                      title={`${itemData.item.name}: ${itemData.available}/${itemData.needed} available${itemData.item.value?.market_price ? ` - ${formatCurrency(itemData.item.value.market_price)} each` : ""}`}
                     >
                       <button onClick={() => setSelectedItem(itemData.item)} className="hover:opacity-80 shrink-0">
                         <img
@@ -285,7 +415,9 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
                       <span className="text-sm text-blue-300 whitespace-nowrap">
                         {itemData.item.name} ({itemData.needed})
                       </span>
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-bold border ${isAvailable ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-red-500/20 text-red-400 border-red-500/40"}`}>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-xs font-bold border ${isAvailable ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-red-500/20 text-red-400 border-red-500/40"}`}
+                      >
                         {isAvailable ? "✓" : "✗"}
                       </span>
                       {itemData.item.value?.market_price && (
@@ -302,7 +434,30 @@ export default function CrimeSummary({ crimes, items, minPassRate, onMinPassRate
         </div>
       )}
 
-      {/* Histroy */}
+      {discordEnabled && discordWebhookUrl && (
+        <div className="flex gap-2">
+          <Button
+            onClick={() => handleSendItemsToDiscord("loaded")}
+            disabled={sendingWebhook}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+            size="sm"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {sendingWebhook ? "Sending..." : "Send Loaded Items"}
+          </Button>
+          <Button
+            onClick={() => handleSendItemsToDiscord("required")}
+            disabled={sendingWebhook}
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+            size="sm"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {sendingWebhook ? "Sending..." : "Send Required Items"}
+          </Button>
+        </div>
+      )}
+
+      {/* History */}
       <div className="bg-card p-3 rounded-lg border border-border/50">
         <div className="text-xs text-muted-foreground mb-2 font-bold">History</div>
         <div className="flex flex-wrap gap-3 text-sm">

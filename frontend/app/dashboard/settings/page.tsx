@@ -19,6 +19,10 @@ interface ThirdPartySettings {
   yata: {
     enabled: boolean
   }
+  discord: {
+    enabled: boolean
+    webhookUrl: string
+  }
 }
 
 export default function SettingsPage() {
@@ -38,9 +42,14 @@ export default function SettingsPage() {
     yata: {
       enabled: false,
     },
+    discord: {
+      enabled: false,
+      webhookUrl: "",
+    },
   }
 
   const [settings, setSettings] = useState<ThirdPartySettings>(defaultSettings)
+  const [testingWebhook, setTestingWebhook] = useState(false)
 
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
@@ -59,6 +68,7 @@ export default function SettingsPage() {
           ffScouter: { ...defaultSettings.ffScouter, ...(parsed.ffScouter || {}) },
           cprTracker: { ...defaultSettings.cprTracker, ...(parsed.cprTracker || {}) },
           yata: { ...defaultSettings.yata, ...(parsed.yata || {}) },
+          discord: { ...defaultSettings.discord, ...(parsed.discord || {}) },
         })
       } catch (err) {
         console.error("Error loading settings:", err)
@@ -89,11 +99,48 @@ export default function SettingsPage() {
     }
   }, [router])
 
+  const handleTestWebhook = async () => {
+    if (!settings.discord.webhookUrl) {
+      toast({
+        title: "Error",
+        description: "Please enter a webhook URL first",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setTestingWebhook(true)
+
+    try {
+      const { sendTestWebhook } = await import("@/lib/integration/discord-webhook")
+      const result = await sendTestWebhook(settings.discord.webhookUrl)
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Test message sent successfully! Check your Discord channel.",
+        })
+      } else {
+        toast({
+          title: "Failed",
+          description: result.error || "Failed to send webhook. Please check your URL.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      })
+    } finally {
+      setTestingWebhook(false)
+    }
+  }
+
   const handleSave = () => {
-    // Save settings to localStorage
     localStorage.setItem("thirdPartySettings", JSON.stringify(settings))
 
-    // Save individual API keys
     if (settings.ffScouter.enabled && settings.ffScouter.apiKey) {
       localStorage.setItem("FFSCOUTER_API_KEY", settings.ffScouter.apiKey)
     } else {
@@ -125,7 +172,7 @@ export default function SettingsPage() {
           </button>
           <div>
             <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-            <p className="text-muted-foreground mt-1">Configure third-party integrations</p>
+            <p className="text-sm text-muted-foreground mt-1">Configure third-party integrations</p>
           </div>
         </div>
       </header>
@@ -139,7 +186,6 @@ export default function SettingsPage() {
             </p>
 
             <div className="space-y-6">
-              {/* Torn Probability API */}
               <div className="border border-border rounded-lg p-4 bg-card/50">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -166,7 +212,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* CrimesHub */}
               <div className="border border-border rounded-lg p-4 bg-card/50">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -193,7 +238,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* FF Scouter */}
               <div className="border border-border rounded-lg p-4 bg-card/50">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1">
@@ -242,7 +286,6 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              {/* CPR Tracker */}
               <div className="border border-border rounded-lg p-4 bg-card/50">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1">
@@ -251,9 +294,7 @@ export default function SettingsPage() {
                       <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">Optional</span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">
-                      Fetch CPR data for members in your faction. Please use the related <a href="https://greasyfork.org/en/scripts/556379-torn-faction-cpr-tracker" target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors">userscript</a>
+                      Recommend members for open OC roles based on CPR (provided by abhinavkm)
                     </p>
                     <a
                       href="https://ufd.abhinavkm.com"
@@ -295,7 +336,6 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              {/* Yata */}
               <div className="border border-border rounded-lg p-4 bg-card/50">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1">
@@ -327,6 +367,58 @@ export default function SettingsPage() {
                     className="mt-1 h-5 w-5 rounded border-border bg-background cursor-pointer"
                   />
                 </div>
+              </div>
+
+              <div className="border border-border rounded-lg p-4 bg-card/50">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-foreground">Discord Webhook</h3>
+                      <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">Optional</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">Send OC notifications to your Discord channel</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.discord.enabled}
+                    onChange={(e) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        discord: { ...prev.discord, enabled: e.target.checked },
+                      }))
+                    }
+                    className="mt-1 h-5 w-5 rounded border-border bg-background cursor-pointer"
+                  />
+                </div>
+                {settings.discord.enabled && (
+                  <div className="mt-3 pt-3 border-t border-border space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">Webhook URL</label>
+                      <input
+                        type="password"
+                        value={settings.discord.webhookUrl}
+                        onChange={(e) =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            discord: { ...prev.discord, webhookUrl: e.target.value },
+                          }))
+                        }
+                        placeholder="https://discord.com/api/webhooks/..."
+                        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Get your webhook URL from Discord: Server Settings → Integrations → Webhooks
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleTestWebhook}
+                      disabled={testingWebhook || !settings.discord.webhookUrl}
+                      className="w-full px-3 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/40 rounded-lg hover:bg-blue-500/30 disabled:opacity-50 transition-colors font-semibold"
+                    >
+                      {testingWebhook ? "Sending Test..." : "Send Test Message"}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

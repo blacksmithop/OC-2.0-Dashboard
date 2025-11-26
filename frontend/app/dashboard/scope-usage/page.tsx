@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { useRouter } from 'next/navigation'
 import { useToast } from "@/hooks/use-toast"
 import { handleFullLogout } from "@/lib/logout-handler"
-import { getScenarioInfo } from "@/lib/crimes/crime-scenarios"
+import { getScenarioInfo } from "@/lib/crimes/scenarios"
 import { crimeApiCache } from "@/lib/cache/crime-api-cache"
 import ScopeUsageHeader from "@/components/scope-usage/scope-usage-header"
 import ScopeUsageStats from "@/components/scope-usage/scope-usage-stats"
