@@ -88,11 +88,11 @@ export interface RequiredItem {
 }
 
 export function sendRequiredItemsWebhook(webhookUrl: string, items: RequiredItem[], type: "loaded" | "required") {
-  const title = type === "loaded" ? "📦 Items Loaded in Faction" : "⚠️ Items Required for OC"
+  const title = type === "loaded" ? "📦 Items Loaned for OC's" : "⚠️ Items Required for OC"
   const color = type === "loaded" ? 0x00ff00 : 0xff9900
   const description =
     type === "loaded"
-      ? `${items.length} unique item(s) are loaded and ready for use`
+      ? `${items.length} unique item(s) have been loaned`
       : `${items.length} item(s) are required but not available`
 
   // Discord limits: 10 embeds per message, 25 fields per embed

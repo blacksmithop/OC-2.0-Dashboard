@@ -550,7 +550,7 @@ export default function CrimeSummary({
             <Send className="text-green-400" />
             <AlertDescription className="flex items-center justify-center">
               <span className="text-green-400 font-semibold">
-                {sendingWebhook ? "Sending..." : "Send Loaned Items"}
+                {sendingWebhook ? "Sending..." : "Loaned Items List"}
               </span>
             </AlertDescription>
           </Alert>
@@ -562,7 +562,7 @@ export default function CrimeSummary({
             <Send className="text-red-400" />
             <AlertDescription className="flex items-center justify-center">
               <span className="text-red-400 font-semibold">
-                {sendingWebhook ? "Sending..." : "Send Required Items"}
+                {sendingWebhook ? "Sending..." : "Required Items List"}
               </span>
             </AlertDescription>
           </Alert>
