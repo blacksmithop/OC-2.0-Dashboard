@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react"
 import { ChevronDown, Send } from "lucide-react"
 import ItemModal from "./item-modal"
-import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { sendRequiredItemsWebhook } from "@/lib/integration/discord-webhook"
 import { useToast } from "@/hooks/use-toast"
 
@@ -54,6 +54,8 @@ interface CrimeSummaryProps {
   membersNotInOC?: Member[]
   allCrimes?: Crime[]
   memberMap?: Map<number, Member>
+  showDiscordButtons?: boolean // Added prop to control Discord button visibility
+  showItemsNeeded?: boolean // Added prop to control Items Needed section visibility
 }
 
 export default function CrimeSummary({
@@ -64,6 +66,8 @@ export default function CrimeSummary({
   membersNotInOC,
   allCrimes = [],
   memberMap = new Map(),
+  showDiscordButtons = false, // Default to false so buttons only show when explicitly enabled
+  showItemsNeeded = false, // Default to false so Items Needed section only shows when explicitly enabled
 }: CrimeSummaryProps) {
   const [isItemsExpanded, setIsItemsExpanded] = useState(false)
   const [isItemsNeededExpanded, setIsItemsNeededExpanded] = useState(false)
@@ -101,7 +105,8 @@ export default function CrimeSummary({
       Expired: 0,
     }
     const itemsGained = new Map<number, { item: any; quantity: number; totalValue: number }>()
-    const itemsNeeded = new Map<number, { item: any; needed: number; available: number }>()
+    const planningItemsNeeded = new Map<number, { item: any; needed: number; available: number }>()
+    const recruitingItemsNeeded = new Map<number, { item: any; needed: number; available: number; filled: number }>()
 
     crimes.forEach((crime) => {
       const status = crime.status === "Failure" ? "Failed" : crime.status
@@ -116,17 +121,45 @@ export default function CrimeSummary({
             const itemData = items.get(itemId)
 
             if (itemData) {
-              if (itemsNeeded.has(itemId)) {
-                const existing = itemsNeeded.get(itemId)!
+              if (planningItemsNeeded.has(itemId)) {
+                const existing = planningItemsNeeded.get(itemId)!
                 existing.needed += 1
                 if (slot.item_requirement.is_available) {
                   existing.available += 1
                 }
               } else {
-                itemsNeeded.set(itemId, {
+                planningItemsNeeded.set(itemId, {
                   item: itemData,
                   needed: 1,
                   available: slot.item_requirement.is_available ? 1 : 0,
+                })
+              }
+            }
+          }
+        })
+      } else if (crime.status === "Recruiting") {
+        crime.slots?.forEach((slot) => {
+          if (slot.item_requirement) {
+            const itemId = slot.item_requirement.id
+            const itemData = items.get(itemId)
+            const isFilled = !!slot.user
+
+            if (itemData) {
+              if (recruitingItemsNeeded.has(itemId)) {
+                const existing = recruitingItemsNeeded.get(itemId)!
+                existing.needed += 1
+                if (slot.item_requirement.is_available) {
+                  existing.available += 1
+                }
+                if (isFilled) {
+                  existing.filled += 1
+                }
+              } else {
+                recruitingItemsNeeded.set(itemId, {
+                  item: itemData,
+                  needed: 1,
+                  available: slot.item_requirement.is_available ? 1 : 0,
+                  filled: isFilled ? 1 : 0,
                 })
               }
             }
@@ -171,7 +204,8 @@ export default function CrimeSummary({
       totalRespect,
       statusCounts,
       itemsGained: Array.from(itemsGained.values()),
-      itemsNeeded: Array.from(itemsNeeded.values()),
+      planningItemsNeeded: Array.from(planningItemsNeeded.values()),
+      recruitingItemsNeeded: Array.from(recruitingItemsNeeded.values()),
     }
   }, [crimes, items])
 
@@ -376,84 +410,162 @@ export default function CrimeSummary({
       )}
 
       {/* Items Needed section */}
-      {summary.itemsNeeded.length > 0 && summary.itemsNeeded.some((item) => item.available > 0) && (
-        <div className="bg-card rounded-lg border border-border/50">
-          <button
-            onClick={() => setIsItemsNeededExpanded(!isItemsNeededExpanded)}
-            className="w-full flex items-center justify-between p-3 transition-all hover:bg-primary/5"
-          >
-            <div className="text-xs text-muted-foreground font-bold">
-              Items needed ({summary.itemsNeeded.reduce((acc, item) => acc + item.needed, 0)})
-            </div>
-            <ChevronDown
-              size={16}
-              className={`transition-transform duration-300 text-muted-foreground ${isItemsNeededExpanded ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {isItemsNeededExpanded && (
-            <div className="px-3 pb-3 pt-0 animate-in fade-in duration-200">
-              <div className="flex flex-wrap gap-2">
-                {summary.itemsNeeded.map((itemData, index) => {
-                  const isAvailable = itemData.available >= itemData.needed
-                  return (
-                    <div
-                      key={index}
-                      className="group relative flex items-center gap-2 bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-md"
-                      title={`${itemData.item.name}: ${itemData.available}/${itemData.needed} available${itemData.item.value?.market_price ? ` - ${formatCurrency(itemData.item.value.market_price)} each` : ""}`}
-                    >
-                      <button onClick={() => setSelectedItem(itemData.item)} className="hover:opacity-80 shrink-0">
-                        <img
-                          src={
-                            itemData.item.image ||
-                            `/placeholder.svg?height=20&width=20&query=${encodeURIComponent(itemData.item.name) || "/placeholder.svg"}`
-                          }
-                          alt={itemData.item.name}
-                          className="w-5 h-5 rounded"
-                        />
-                      </button>
-                      <span className="text-sm text-blue-300 whitespace-nowrap">
-                        {itemData.item.name} ({itemData.needed})
-                      </span>
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-xs font-bold border ${isAvailable ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-red-500/20 text-red-400 border-red-500/40"}`}
-                      >
-                        {isAvailable ? "✓" : "✗"}
-                      </span>
-                      {itemData.item.value?.market_price && (
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                          {formatCurrency(itemData.item.value.market_price * itemData.needed)} total
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+      {showItemsNeeded && (summary.planningItemsNeeded.length > 0 || summary.recruitingItemsNeeded.length > 0) && (
+        <Alert className="bg-card border-blue-500/30">
+          <AlertDescription>
+            <button
+              onClick={() => setIsItemsNeededExpanded(!isItemsNeededExpanded)}
+              className="w-full flex items-center justify-between mb-2 transition-all hover:opacity-80"
+            >
+              <div className="text-xs text-muted-foreground font-bold">
+                Items needed (
+                {summary.planningItemsNeeded.reduce((acc, item) => acc + item.needed, 0) +
+                  summary.recruitingItemsNeeded.reduce((acc, item) => acc + item.needed, 0)}
+                )
               </div>
-            </div>
-          )}
-        </div>
+              <ChevronDown
+                size={16}
+                className={`transition-transform duration-300 text-muted-foreground ${isItemsNeededExpanded ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {isItemsNeededExpanded && (
+              <div className="animate-in fade-in duration-200 space-y-4">
+                {/* Planning OCs Items */}
+                {summary.planningItemsNeeded.length > 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground font-semibold mb-2">Planning OCs</div>
+                    <div className="flex flex-wrap gap-2">
+                      {summary.planningItemsNeeded.map((itemData, index) => {
+                        const isAvailable = itemData.available >= itemData.needed
+                        return (
+                          <div
+                            key={index}
+                            className="group relative flex items-center gap-2 bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-md"
+                            title={`${itemData.item.name}: ${itemData.available}/${itemData.needed} available${itemData.item.value?.market_price ? ` - ${formatCurrency(itemData.item.value.market_price)} each` : ""}`}
+                          >
+                            <button
+                              onClick={() => setSelectedItem(itemData.item)}
+                              className="hover:opacity-80 shrink-0"
+                            >
+                              <img
+                                src={
+                                  itemData.item.image ||
+                                  `/placeholder.svg?height=20&width=20&query=${encodeURIComponent(itemData.item.name) || "/placeholder.svg"}`
+                                }
+                                alt={itemData.item.name}
+                                className="w-5 h-5 rounded"
+                              />
+                            </button>
+                            <span className="text-sm text-blue-300 whitespace-nowrap">
+                              {itemData.item.name} ({itemData.needed})
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-xs font-bold border ${isAvailable ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-red-500/20 text-red-400 border-red-500/40"}`}
+                            >
+                              {isAvailable ? "✓" : "✗"}
+                            </span>
+                            {itemData.item.value?.market_price && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                {formatCurrency(itemData.item.value.market_price * itemData.needed)} total
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Divider */}
+                {summary.planningItemsNeeded.length > 0 && summary.recruitingItemsNeeded.length > 0 && (
+                  <div className="border-t border-border/50" />
+                )}
+
+                {/* Recruiting OCs Items */}
+                {summary.recruitingItemsNeeded.length > 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground font-semibold mb-2">
+                      Recruiting OCs (Filled Slots)
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {summary.recruitingItemsNeeded.map((itemData, index) => {
+                        const filledSlotsWithItem = itemData.available
+                        const totalFilledSlots = itemData.filled
+                        const hasAllItems = filledSlotsWithItem >= totalFilledSlots
+
+                        if (totalFilledSlots === 0) return null
+
+                        return (
+                          <div
+                            key={index}
+                            className="group relative flex items-center gap-2 bg-purple-500/20 border border-purple-500/30 px-3 py-1.5 rounded-md"
+                            title={`${itemData.item.name}: ${filledSlotsWithItem}/${totalFilledSlots} filled slots have item${itemData.item.value?.market_price ? ` - ${formatCurrency(itemData.item.value.market_price)} each` : ""}`}
+                          >
+                            <button
+                              onClick={() => setSelectedItem(itemData.item)}
+                              className="hover:opacity-80 shrink-0"
+                            >
+                              <img
+                                src={
+                                  itemData.item.image ||
+                                  `/placeholder.svg?height=20&width=20&query=${encodeURIComponent(itemData.item.name) || "/placeholder.svg"}`
+                                }
+                                alt={itemData.item.name}
+                                className="w-5 h-5 rounded"
+                              />
+                            </button>
+                            <span className="text-sm text-purple-300 whitespace-nowrap">
+                              {itemData.item.name} ({totalFilledSlots})
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-xs font-bold border ${hasAllItems ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-red-500/20 text-red-400 border-red-500/40"}`}
+                            >
+                              {hasAllItems ? "✓" : "✗"}
+                            </span>
+                            {itemData.item.value?.market_price && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-background border border-border rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                {formatCurrency(itemData.item.value.market_price * totalFilledSlots)} total
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
       )}
 
-      {discordEnabled && discordWebhookUrl && (
+      {/* Discord Buttons */}
+      {showDiscordButtons && discordEnabled && discordWebhookUrl && (
         <div className="flex gap-2">
-          <Button
+          <Alert
+            className="flex-1 bg-green-600/10 border-green-600/30 cursor-pointer hover:bg-green-600/20 transition-colors"
             onClick={() => handleSendItemsToDiscord("loaded")}
-            disabled={sendingWebhook}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-            size="sm"
           >
-            <Send className="w-4 h-4 mr-2" />
-            {sendingWebhook ? "Sending..." : "Send Loaded Items"}
-          </Button>
-          <Button
+            <Send className="text-green-400" />
+            <AlertDescription className="flex items-center justify-center">
+              <span className="text-green-400 font-semibold">
+                {sendingWebhook ? "Sending..." : "Send Loaned Items"}
+              </span>
+            </AlertDescription>
+          </Alert>
+
+          <Alert
+            className="flex-1 bg-red-600/10 border-red-600/30 cursor-pointer hover:bg-red-600/20 transition-colors"
             onClick={() => handleSendItemsToDiscord("required")}
-            disabled={sendingWebhook}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-            size="sm"
           >
-            <Send className="w-4 h-4 mr-2" />
-            {sendingWebhook ? "Sending..." : "Send Required Items"}
-          </Button>
+            <Send className="text-red-400" />
+            <AlertDescription className="flex items-center justify-center">
+              <span className="text-red-400 font-semibold">
+                {sendingWebhook ? "Sending..." : "Send Required Items"}
+              </span>
+            </AlertDescription>
+          </Alert>
         </div>
       )}
 

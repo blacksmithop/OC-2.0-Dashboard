@@ -550,6 +550,8 @@ export default function CrimesPage() {
             membersNotInOC={membersNotInOC}
             allCrimes={crimes}
             memberMap={memberMap}
+            showDiscordButtons={true}
+            showItemsNeeded={true}
           />
           <CrimesList
             crimes={dateFilteredCrimes}
