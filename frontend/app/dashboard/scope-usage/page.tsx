@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { getScenarioInfo } from "@/lib/crimes/scenarios"
@@ -35,17 +35,17 @@ export default function ScopeUsagePage() {
   const [maxFetchCount, setMaxFetchCount] = useState(1000)
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
-  
+
   const [selectedLevels, setSelectedLevels] = useState<number[]>([])
   const [selectedLengths, setSelectedLengths] = useState<number[]>([])
   const [selectedPeople, setSelectedPeople] = useState<number[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
-  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' })
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: "", to: "" })
 
-  const [userFilter, setUserFilter] = useState('')
-  const [scenarioFilter, setScenarioFilter] = useState('')
-  const [crimeIdFilter, setCrimeIdFilter] = useState('')
+  const [userFilter, setUserFilter] = useState("")
+  const [scenarioFilter, setScenarioFilter] = useState("")
+  const [crimeIdFilter, setCrimeIdFilter] = useState("")
 
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
@@ -118,13 +118,14 @@ export default function ScopeUsagePage() {
   }
 
   const parseScopeUsage = (id: string, timestamp: number, news: string): ScopeUsageEntry | null => {
-    const scopeRegex = /<a href\s*=\s*"[^"]*XID=(\d+)">([^<]+)<\/a>\s+used\s+(\d+)\s+scope\s+spawning\s+the\s+\w+\s+scenario\s+<span[^>]*>([^<]+)<\/span>/i
+    const scopeRegex =
+      /<a href\s*=\s*"[^"]*XID=(\d+)">([^<]+)<\/a>\s+used\s+(\d+)\s+scope\s+spawning\s+the\s+\w+\s+scenario\s+<span[^>]*>([^<]+)<\/span>/i
     const match = news.match(scopeRegex)
-    
+
     if (match) {
       const crimeIdMatch = news.match(/crimeId=(\d+)/)
       const scenarioInfo = getScenarioInfo(match[4])
-      
+
       return {
         userId: Number.parseInt(match[1]),
         user: match[2],
@@ -327,11 +328,11 @@ export default function ScopeUsagePage() {
           const hasTools = scenarioInfo.tools.length > 0
           const hasMaterials = scenarioInfo.materials.length > 0
           const categories = []
-          if (hasTools) categories.push('Tools Required')
-          if (hasMaterials) categories.push('Materials Required')
-          if (!hasTools && !hasMaterials) categories.push('No Items')
-          
-          const matchesCategory = categories.some(cat => selectedCategories.includes(cat))
+          if (hasTools) categories.push("Tools Required")
+          if (hasMaterials) categories.push("Materials Required")
+          if (!hasTools && !hasMaterials) categories.push("No Items")
+
+          const matchesCategory = categories.some((cat) => selectedCategories.includes(cat))
           if (!matchesCategory) return false
         }
       }
@@ -348,43 +349,60 @@ export default function ScopeUsagePage() {
       }
       return true
     })
-  }, [scopeUsage, selectedLevels, selectedLengths, selectedPeople, selectedCategories, selectedUsers, dateRange, userFilter, scenarioFilter, crimeIdFilter])
+  }, [
+    scopeUsage,
+    selectedLevels,
+    selectedLengths,
+    selectedPeople,
+    selectedCategories,
+    selectedUsers,
+    dateRange,
+    userFilter,
+    scenarioFilter,
+    crimeIdFilter,
+  ])
 
   const stats = useMemo(() => {
     const totalScopeUsed = filteredScopeUsage.reduce((sum, entry) => sum + entry.scopeUsed, 0)
     const totalSpawns = filteredScopeUsage.length
     const avgScope = totalSpawns > 0 ? totalScopeUsed / totalSpawns : 0
-    
+
     // Group by scenario
-    const byScenario = filteredScopeUsage.reduce((acc, entry) => {
-      if (!acc[entry.scenario]) {
-        acc[entry.scenario] = { count: 0, totalScope: 0 }
-      }
-      acc[entry.scenario].count++
-      acc[entry.scenario].totalScope += entry.scopeUsed
-      return acc
-    }, {} as Record<string, { count: number; totalScope: number }>)
-    
+    const byScenario = filteredScopeUsage.reduce(
+      (acc, entry) => {
+        if (!acc[entry.scenario]) {
+          acc[entry.scenario] = { count: 0, totalScope: 0 }
+        }
+        acc[entry.scenario].count++
+        acc[entry.scenario].totalScope += entry.scopeUsed
+        return acc
+      },
+      {} as Record<string, { count: number; totalScope: number }>,
+    )
+
     // Most spawned scenarios
     const mostSpawned = Object.entries(byScenario)
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 5)
-    
+
     // Group by user
-    const byUser = filteredScopeUsage.reduce((acc, entry) => {
-      if (!acc[entry.user]) {
-        acc[entry.user] = { count: 0, totalScope: 0 }
-      }
-      acc[entry.user].count++
-      acc[entry.user].totalScope += entry.scopeUsed
-      return acc
-    }, {} as Record<string, { count: number; totalScope: number }>)
-    
+    const byUser = filteredScopeUsage.reduce(
+      (acc, entry) => {
+        if (!acc[entry.user]) {
+          acc[entry.user] = { count: 0, totalScope: 0 }
+        }
+        acc[entry.user].count++
+        acc[entry.user].totalScope += entry.scopeUsed
+        return acc
+      },
+      {} as Record<string, { count: number; totalScope: number }>,
+    )
+
     // Top scope users
     const topUsers = Object.entries(byUser)
       .sort((a, b) => b[1].totalScope - a[1].totalScope)
       .slice(0, 5)
-    
+
     return {
       totalScopeUsed,
       totalSpawns,
@@ -409,10 +427,10 @@ export default function ScopeUsagePage() {
     setSelectedPeople([])
     setSelectedCategories([])
     setSelectedUsers([])
-    setDateRange({ from: '', to: '' })
-    setUserFilter('')
-    setScenarioFilter('')
-    setCrimeIdFilter('')
+    setDateRange({ from: "", to: "" })
+    setUserFilter("")
+    setScenarioFilter("")
+    setCrimeIdFilter("")
     // Close all filter dropdowns when clearing filters
     // The filter dropdowns are managed within ScopeUsageTable and will be reset implicitly
   }
@@ -458,35 +476,31 @@ export default function ScopeUsagePage() {
             userFilter={userFilter}
             scenarioFilter={scenarioFilter}
             crimeIdFilter={crimeIdFilter}
-            availableLevels={[...new Set(scopeUsage.map(e => e.level).filter(Boolean))].sort((a, b) => a! - b!)}
-            availableLengths={[...new Set(scopeUsage.map(e => e.length).filter(Boolean))].sort((a, b) => a! - b!)}
-            availablePeople={[...new Set(scopeUsage.map(e => e.people).filter(Boolean))].sort((a, b) => a! - b!)}
-            availableCategories={['Tools Required', 'Materials Required', 'No Items']}
-            availableUsers={[...new Set(scopeUsage.map(e => e.user))].sort()}
+            availableLevels={[...new Set(scopeUsage.map((e) => e.level).filter(Boolean))].sort((a, b) => a! - b!)}
+            availableLengths={[...new Set(scopeUsage.map((e) => e.length).filter(Boolean))].sort((a, b) => a! - b!)}
+            availablePeople={[...new Set(scopeUsage.map((e) => e.people).filter(Boolean))].sort((a, b) => a! - b!)}
+            availableCategories={["Tools Required", "Materials Required", "No Items"]}
+            availableUsers={[...new Set(scopeUsage.map((e) => e.user))].sort()}
             onLevelToggle={(level) => {
-              setSelectedLevels(prev => 
-                prev.includes(level) ? prev.filter(l => l !== level) : [...prev, level]
-              )
+              setSelectedLevels((prev) => (prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]))
             }}
             onLengthToggle={(length) => {
-              setSelectedLengths(prev => 
-                prev.includes(length) ? prev.filter(l => l !== length) : [...prev, length]
+              setSelectedLengths((prev) =>
+                prev.includes(length) ? prev.filter((l) => l !== length) : [...prev, length],
               )
             }}
             onPeopleToggle={(people) => {
-              setSelectedPeople(prev => 
-                prev.includes(people) ? prev.filter(p => p !== people) : [...prev, people]
+              setSelectedPeople((prev) =>
+                prev.includes(people) ? prev.filter((p) => p !== people) : [...prev, people],
               )
             }}
             onCategoryToggle={(category) => {
-              setSelectedCategories(prev => 
-                prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
+              setSelectedCategories((prev) =>
+                prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
               )
             }}
             onUserToggle={(user) => {
-              setSelectedUsers(prev => 
-                prev.includes(user) ? prev.filter(u => u !== user) : [...prev, user]
-              )
+              setSelectedUsers((prev) => (prev.includes(user) ? prev.filter((u) => u !== user) : [...prev, user]))
             }}
             onDateRangeChange={setDateRange}
             onUserFilterChange={setUserFilter}

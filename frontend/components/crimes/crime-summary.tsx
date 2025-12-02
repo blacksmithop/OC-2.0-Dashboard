@@ -24,6 +24,7 @@ interface Crime {
     item_requirement?: {
       id: number
       is_available: boolean
+      is_reusable: boolean
     }
   }>
 }
@@ -97,6 +98,7 @@ export default function CrimeSummary({
     let totalMoney = 0
     let totalRespect = 0
     let totalItemValue = 0
+    let totalCost = 0
     const statusCounts = {
       Planning: 0,
       Recruiting: 0,
@@ -105,6 +107,7 @@ export default function CrimeSummary({
       Expired: 0,
     }
     const itemsGained = new Map<number, { item: any; quantity: number; totalValue: number }>()
+    const itemsConsumed = new Map<number, { item: any; quantity: number; totalCost: number }>()
     const planningItemsNeeded = new Map<number, { item: any; needed: number; available: number }>()
     const recruitingItemsNeeded = new Map<number, { item: any; needed: number; available: number; filled: number }>()
 
@@ -114,13 +117,13 @@ export default function CrimeSummary({
         statusCounts[status as keyof typeof statusCounts]++
       }
 
-      if (crime.status === "Planning") {
-        crime.slots?.forEach((slot) => {
-          if (slot.item_requirement) {
-            const itemId = slot.item_requirement.id
-            const itemData = items.get(itemId)
+      crime.slots?.forEach((slot) => {
+        if (slot.item_requirement) {
+          const itemId = slot.item_requirement.id
+          const itemData = items.get(itemId)
 
-            if (itemData) {
+          if (itemData) {
+            if (crime.status === "Planning") {
               if (planningItemsNeeded.has(itemId)) {
                 const existing = planningItemsNeeded.get(itemId)!
                 existing.needed += 1
@@ -134,24 +137,14 @@ export default function CrimeSummary({
                   available: slot.item_requirement.is_available ? 1 : 0,
                 })
               }
-            }
-          }
-        })
-      } else if (crime.status === "Recruiting") {
-        crime.slots?.forEach((slot) => {
-          if (slot.item_requirement) {
-            const itemId = slot.item_requirement.id
-            const itemData = items.get(itemId)
-            const isFilled = !!slot.user
-
-            if (itemData) {
+            } else if (crime.status === "Recruiting") {
               if (recruitingItemsNeeded.has(itemId)) {
                 const existing = recruitingItemsNeeded.get(itemId)!
                 existing.needed += 1
                 if (slot.item_requirement.is_available) {
                   existing.available += 1
                 }
-                if (isFilled) {
+                if (slot.user) {
                   existing.filled += 1
                 }
               } else {
@@ -159,14 +152,35 @@ export default function CrimeSummary({
                   item: itemData,
                   needed: 1,
                   available: slot.item_requirement.is_available ? 1 : 0,
-                  filled: isFilled ? 1 : 0,
+                  filled: slot.user ? 1 : 0,
                 })
               }
             }
-          }
-        })
-      }
 
+            if (crime.status === "Successful") {
+              if (!slot.item_requirement?.is_reusable) {
+                const itemCost = itemData.value?.market_price || 0
+                totalCost += itemCost
+
+                if (itemsConsumed.has(itemId)) {
+                  const existing = itemsConsumed.get(itemId)!
+                  existing.quantity += 1
+                  existing.totalCost += itemCost
+                } else {
+                  itemsConsumed.set(itemId, {
+                    item: itemData,
+                    quantity: 1,
+                    totalCost: itemCost,
+                  })
+                }
+              }
+            }
+          }
+        }
+      })
+    })
+
+    crimes.forEach((crime) => {
       if (crime.status === "Successful" && crime.rewards) {
         totalMoney += crime.rewards.money || 0
         totalRespect += crime.rewards.respect || 0
@@ -202,6 +216,8 @@ export default function CrimeSummary({
       totalMoney,
       totalItemValue,
       totalRespect,
+      totalCost,
+      itemsConsumed: Array.from(itemsConsumed.values()),
       statusCounts,
       itemsGained: Array.from(itemsGained.values()),
       planningItemsNeeded: Array.from(planningItemsNeeded.values()),
@@ -301,28 +317,45 @@ export default function CrimeSummary({
   }
 
   return (
-    <div className="mb-4 space-y-3">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-sm font-medium text-muted-foreground">Total Value</div>
+          <div className="text-2xl font-bold text-green-500">${summary.totalValue.toLocaleString()}</div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-sm font-medium text-muted-foreground">Direct Money</div>
+          <div className="text-2xl font-bold text-green-500">${summary.totalMoney.toLocaleString()}</div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-sm font-medium text-muted-foreground">Item Value</div>
+          <div className="text-2xl font-bold text-orange-500">${summary.totalItemValue.toLocaleString()}</div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-sm font-medium text-muted-foreground">Total Respect</div>
+          <div className="text-2xl font-bold text-blue-500">{summary.totalRespect.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {summary.totalCost > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="text-sm font-medium text-muted-foreground">Cost (Consumed Items)</div>
+            <div className="text-2xl font-bold text-red-500">${summary.totalCost.toLocaleString()}</div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="text-sm font-medium text-muted-foreground">Net Profit</div>
+            <div className="text-2xl font-bold text-cyan-500">
+              ${(summary.totalValue - summary.totalCost).toLocaleString()}
+            </div>
+          </div>
+        </div>
+      )}
+
       <ItemModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-card p-3 rounded-lg border border-border/50">
-          <div className="text-xs text-muted-foreground mb-1">Total Value</div>
-          <div className="text-lg font-bold text-green-400">{formatCurrency(summary.totalValue)}</div>
-        </div>
-        <div className="bg-card p-3 rounded-lg border border-border/50">
-          <div className="text-xs text-muted-foreground mb-1">Direct Money</div>
-          <div className="text-lg font-bold text-green-400">{formatCurrency(summary.totalMoney)}</div>
-        </div>
-        <div className="bg-card p-3 rounded-lg border border-border/50">
-          <div className="text-xs text-muted-foreground mb-1">Item Value</div>
-          <div className="text-lg font-bold text-orange-400">{formatCurrency(summary.totalItemValue)}</div>
-        </div>
-        <div className="bg-card p-3 rounded-lg border border-border/50">
-          <div className="text-xs text-muted-foreground mb-1">Total Respect</div>
-          <div className="text-lg font-bold text-blue-400">{formatNumber(summary.totalRespect)}</div>
-        </div>
-      </div>
+      {/* Removed redundant summary stats section */}
 
       {/* Minimum Pass Rate setting */}
       {minPassRate !== undefined && onMinPassRateChange && (
@@ -550,7 +583,7 @@ export default function CrimeSummary({
             <Send className="text-green-400" />
             <AlertDescription className="flex items-center justify-center">
               <span className="text-green-400 font-semibold">
-                {sendingWebhook ? "Sending..." : "Loaned Items List"}
+                {sendingWebhook ? "Sending..." : "Send Loaned Items"}
               </span>
             </AlertDescription>
           </Alert>
@@ -562,7 +595,7 @@ export default function CrimeSummary({
             <Send className="text-red-400" />
             <AlertDescription className="flex items-center justify-center">
               <span className="text-red-400 font-semibold">
-                {sendingWebhook ? "Sending..." : "Required Items List"}
+                {sendingWebhook ? "Sending..." : "Send Required Items"}
               </span>
             </AlertDescription>
           </Alert>

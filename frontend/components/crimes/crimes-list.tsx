@@ -6,7 +6,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import ItemModal from "./item-modal"
 import CrimeCard from "./crime-card"
 import CrimeGroupHeader from "./crime-group-header"
-import { getRoleWeights } from "@/lib/role-weights"
+import { getRoleWeights } from "@/lib/crimes/role-weights"
 import { STATUS_ORDER } from "@/constants/crime-statuses"
 
 interface CrimesListProps {

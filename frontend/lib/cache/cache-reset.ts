@@ -3,44 +3,57 @@
  */
 export function clearAllCache() {
   const itemsToClear = [
+    // Historical crimes and fetch tracking
     "factionHistoricalCrimes",
     "lastHistoricalFetch",
 
+    // Items cache
     "factionItemsCache",
     "factionItemsTimestamp",
     "tornItems",
 
+    // Armory caches
     "factionArmoryLogs",
     "lastArmoryFetch",
     "armoryNews",
     "armoryMaxFetch",
 
+    // API caches
     "crimeApiCache",
 
+    // Balance cache
     "factionBalance",
     "factionBalanceTimestamp",
 
+    // Members cache
     "factionMembersCache",
     "factionMembersTimestamp",
 
+    // Faction basic info
     "factionBasicCache",
     "factionBasic",
     "factionId",
     "factionName",
 
+    // Crime news
     "factionCrimeNews",
     "factionCrimeNewsTimestamp",
 
+    // Funds cache
     "factionFundsNews",
 
+    // Scope usage
     "scopeUsage",
 
+    // YATA cache
     "yata_members",
     "yata_members_timestamp",
 
+    // FFScouter cache
     "ffscouter_stats",
     "ffscouter_stats_timestamp",
 
+    // API scopes
     "apiScopes",
   ]
 

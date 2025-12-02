@@ -445,9 +445,21 @@ export default function CrimesPage() {
     }
 
     const timestamps = crimes.map((crime) => crime.created_at * 1000)
+    const calculatedMinDate = new Date(Math.min(...timestamps))
+    const calculatedMaxDate = new Date(Math.max(...timestamps))
+
+    console.log("[v0] Date range calculated from crimes:", {
+      crimesCount: crimes.length,
+      minTimestamp: Math.min(...timestamps),
+      maxTimestamp: Math.max(...timestamps),
+      minDate: calculatedMinDate.toISOString(),
+      maxDate: calculatedMaxDate.toISOString(),
+      latestCrimeId: crimes.find((c) => c.created_at * 1000 === Math.max(...timestamps))?.id,
+    })
+
     return {
-      minDate: new Date(Math.min(...timestamps)),
-      maxDate: new Date(Math.max(...timestamps)),
+      minDate: calculatedMinDate,
+      maxDate: calculatedMaxDate,
     }
   }, [crimes])
 
@@ -491,15 +503,19 @@ export default function CrimesPage() {
   }
 
   useEffect(() => {
-    if (crimes.length > 0 && !customDateRange) {
+    if (crimes.length > 0) {
       const start = new Date(minDate)
       const end = new Date(maxDate)
       start.setHours(0, 0, 0, 0)
       end.setHours(23, 59, 59, 999)
-      console.log("[v0] Initializing date range:", { start, end, crimesCount: crimes.length })
+      console.log("[v0] Setting date range:", {
+        start: start.toISOString(),
+        end: end.toISOString(),
+        crimesCount: crimes.length,
+      })
       setCustomDateRange({ start, end })
     }
-  }, [crimes.length, minDate, maxDate, customDateRange])
+  }, [crimes.length, minDate, maxDate])
 
   if (isLoading) {
     return (

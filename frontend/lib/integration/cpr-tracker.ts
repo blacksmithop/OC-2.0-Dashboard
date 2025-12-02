@@ -4,7 +4,7 @@ export interface CPRTrackerData {
   members: {
     [memberId: string]: {
       [crimeName: string]: {
-        [roleName: string]: number
+        [roleName: string]: number // CPR percentage
       }
     }
   }
@@ -78,13 +78,17 @@ export function getRecommendedMembers(
     if (cpr >= minPassRate) {
       recommendations.push({
         memberId,
-        memberName: "",
+        memberName: "", // Will be filled from members list
         cpr,
       })
     }
   })
 
+  // Sort by CPR descending
   recommendations.sort((a, b) => b.cpr - a.cpr)
 
   return recommendations
 }
+
+// Clear cache function for when settings change
+// Removed as per updates

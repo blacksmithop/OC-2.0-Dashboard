@@ -14,7 +14,7 @@ import { clearAllCache } from "@/lib/cache/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { canAccessBalance } from "@/lib/api-scopes"
 import { fetchFFScouterStats } from "@/lib/integration/ffscouter"
-import { fetchYataMembers } from "@/lib/yata"
+import { fetchYataMembers, YataMemberData } from "@/lib/yata"
 
 interface Member {
   id: number
@@ -69,6 +69,7 @@ export default function MembersPage() {
   })
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [hasBalanceScope, setHasBalanceScope] = useState(false)
+  const [factionBalance, setFactionBalance] = useState<number | null>(null)
 
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
@@ -96,6 +97,9 @@ export default function MembersPage() {
       let balanceData = null
       if (shouldFetchBalance) {
         balanceData = await fetchAndCacheBalance(apiKey)
+        if (balanceData) {
+          setFactionBalance(balanceData.total)
+        }
       }
 
       const membersData = await fetchAndCacheMembers(apiKey)
@@ -345,6 +349,18 @@ export default function MembersPage() {
 
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-2xl mx-auto">
+          {hasBalanceScope && factionBalance !== null && (
+            <div className="bg-card border-2 border-border rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Faction Balance</span>
+                </div>
+                <div className="text-2xl font-bold text-green-400">
+                  ${new Intl.NumberFormat().format(factionBalance)}
+                </div>
+              </div>
+            </div>
+          )}
           <MemberList
             members={members}
             crimes={activeRecruitingCrimes}

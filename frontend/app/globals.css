@@ -4,7 +4,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Light mode colors */
   --background: oklch(0.98 0 0);
   --foreground: oklch(0.14 0 0);
   --card: oklch(1 0 0);
@@ -41,7 +40,6 @@
 }
 
 .dark {
-  /* True dark mode with high contrast white text and visible borders */
   --background: oklch(0.12 0 0);
   --foreground: oklch(0.98 0 0);
   --card: oklch(0.15 0 0);
@@ -58,7 +56,6 @@
   --accent-foreground: oklch(0.98 0 0);
   --destructive: oklch(0.55 0.25 25);
   --destructive-foreground: oklch(0.98 0 0);
-  /* Lighter, more subtle borders for reduced contrast */
   --border: oklch(0.25 0 0);
   --input: oklch(0.2 0 0);
   --ring: oklch(0.65 0.2 210);
@@ -78,7 +75,6 @@
 }
 
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --font-sans: "Inter", "Inter Fallback", system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", monospace;
 
@@ -161,9 +157,10 @@
     scrollbar-color: rgb(var(--border)) rgb(var(--card));
   }
 
-  /* Adding animated border for open recruiting slots */
+  /* Animated border for open recruiting slots */
   @keyframes border-pulse-purple {
-    0%, 100% {
+    0%,
+    100% {
       border-color: rgb(168 85 247 / 0.4);
       box-shadow: 0 0 0 0 rgb(168 85 247 / 0.4);
     }
@@ -177,9 +174,10 @@
     animation: border-pulse-purple 2s ease-in-out infinite;
   }
 
-  /* Adding animated border for missing items in planning */
+  /* Animated border for missing items in planning */
   @keyframes border-pulse-orange {
-    0%, 100% {
+    0%,
+    100% {
       border-color: rgb(251 146 60 / 0.4);
       box-shadow: 0 0 0 0 rgb(251 146 60 / 0.4);
     }

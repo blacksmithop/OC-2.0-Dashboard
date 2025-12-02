@@ -9,7 +9,7 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "OC 2.0 Dashboard",
+  title: "Torn OC App",
   description: "Faction management and crime tracking",
   generator: "v0.app",
 }

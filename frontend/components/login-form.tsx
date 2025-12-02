@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
+import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import ApiKeyBuilder from "@/components/api-key-builder"
 import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 
@@ -56,6 +57,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
+        <label className="block text-sm font-medium text-foreground mb-2">Faction API Key</label>
         <input
           type="password"
           value={apiKey}
@@ -71,11 +73,10 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
       <div className="bg-card/50 border border-border rounded-lg p-4 space-y-2">
         <h3 className="text-sm font-semibold text-foreground text-center">Data Policy</h3>
-        <ul className="text-xs text-semibold space-y-1.5">
-          <li>• Faction API access is required</li>
-          <li>• Your API Key and any cache is stored in the browser</li>
-          <li>• Logging out will clear the cache</li>
-          <li>• Third-party integrations such as FFScouter, Yata, CPR Data are opt-in</li>
+        <ul className="text-xs text-muted-foreground space-y-1.5">
+          <li>• Your API Key is stored in the browser</li>
+          <li>• Logging out will remove your key</li>
+          <li>• All API calls are done in the browser</li>
           <li>
             • For queries please ask in the{" "}
             <a
@@ -86,7 +87,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
             >
               forums
             </a>{" "}
-            or message me in-game
+            or DM me :)
           </li>
         </ul>
       </div>

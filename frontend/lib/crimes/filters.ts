@@ -23,10 +23,10 @@ export function sortCrimes(crimes: Crime[], sortType: SortType): Crime[] {
 
 export function filterCrimesByDateRange(crimes: Crime[], days: number): Crime[] {
   if (days === 0) return crimes
-  
+
   const now = Date.now() / 1000
-  const cutoffTime = now - (days * 24 * 60 * 60)
-  
+  const cutoffTime = now - days * 24 * 60 * 60
+
   return crimes.filter((crime) => {
     const timestamp = crime.executed_at || crime.created_at || 0
     return timestamp >= cutoffTime
@@ -35,14 +35,12 @@ export function filterCrimesByDateRange(crimes: Crime[], days: number): Crime[] 
 
 export function filterCrimesByMember(crimes: Crime[], memberId: number | null): Crime[] {
   if (!memberId) return crimes
-  return crimes.filter((crime) => 
-    crime.slots.some((slot) => slot.user?.id === memberId)
-  )
+  return crimes.filter((crime) => crime.slots.some((slot) => slot.user?.id === memberId))
 }
 
 export function hasAtRiskMembers(crime: Crime, minPassRate: number): boolean {
   return crime.slots.some(
-    (slot) => slot.user && slot.checkpoint_pass_rate !== undefined && slot.checkpoint_pass_rate < minPassRate
+    (slot) => slot.user && slot.checkpoint_pass_rate !== undefined && slot.checkpoint_pass_rate < minPassRate,
   )
 }
 

@@ -1,6 +1,8 @@
 "use client"
 
-import { ChevronDown, ArrowUpDown } from 'lucide-react'
+import type React from "react"
+
+import { ChevronDown, ArrowUpDown } from "lucide-react"
 import { getHeaderColor } from "@/lib/crimes/colors"
 
 interface CrimeGroupHeaderProps {

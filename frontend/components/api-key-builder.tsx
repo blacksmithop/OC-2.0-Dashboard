@@ -110,7 +110,7 @@ export default function ApiKeyBuilder() {
             size="lg"
           >
             <ExternalLink className="h-5 w-5 mr-2" />
-            Create Custom Key
+            Get API Key
           </Button>
         </div>
       )}

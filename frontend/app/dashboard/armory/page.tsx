@@ -35,7 +35,6 @@ export default function ArmoryPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-
   const [armoryNews, setArmoryNews] = useState<ArmoryNewsItem[]>([])
   const [items, setItems] = useState<Map<number, TornItem>>(new Map())
   const [members, setMembers] = useState<FactionMember[]>([])
@@ -53,7 +52,6 @@ export default function ArmoryPage() {
   const [hasArmoryAccess, setHasArmoryAccess] = useState<boolean>(true)
   const [selectedItemFilter, setSelectedItemFilter] = useState<string>("All Items")
 
-
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
     if (!apiKey) {
@@ -61,10 +59,8 @@ export default function ArmoryPage() {
       return
     }
 
-
     const savedMaxFetch = loadMaxFetchCount()
     setMaxFetchCount(savedMaxFetch)
-
 
     loadItemsData(apiKey)
     loadMembersData(apiKey)

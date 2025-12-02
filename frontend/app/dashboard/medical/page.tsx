@@ -11,6 +11,7 @@ import { handleFullLogout } from "@/lib/logout-handler"
 import type { MedicalItem, MedicalAlertSettings } from "@/lib/medical-types"
 import { DEFAULT_MEDICAL_ALERTS, ALL_BLOOD_BAGS, ALL_EMPTY_BLOOD_BAGS, ALL_FIRST_AID_KITS } from "@/lib/medical-types"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+import { getItemImageUrl, getItemName } from "@/lib/items-fallback"
 
 export default function MedicalPage() {
   const router = useRouter()
@@ -177,10 +178,7 @@ export default function MedicalPage() {
           <div className="bg-card border border-border rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <h2 className="text-xl font-bold text-foreground">Configure Alert Thresholds</h2>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                className="p-2 rounded-lg transition-colors"
-              >
+              <button onClick={() => setShowSettingsModal(false)} className="p-2 rounded-lg transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -369,7 +367,7 @@ export default function MedicalPage() {
                               {/* Item thumbnail */}
                               <div className="relative">
                                 <img
-                                  src={`https://www.torn.com/images/items/${template.id}/large.png`}
+                                  src={getItemImageUrl(template.id) || "/placeholder.svg"}
                                   alt={template.name}
                                   className={`w-16 h-16 object-contain ${isMissing ? "grayscale" : ""}`}
                                   onError={(e) => {
@@ -389,9 +387,9 @@ export default function MedicalPage() {
                                   className={`font-semibold text-xs leading-tight line-clamp-2 ${
                                     isMissing ? "text-muted-foreground" : "text-foreground"
                                   }`}
-                                  title={template.name}
+                                  title={getItemName(template.id, template.name)}
                                 >
-                                  {template.name}
+                                  {getItemName(template.id, template.name)}
                                 </p>
                               </div>
 

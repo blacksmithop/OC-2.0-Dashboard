@@ -6,6 +6,7 @@ import { RefreshCw, Microscope, Sparkles } from "lucide-react"
 import CrimeSlot from "./crime-slot"
 import CrimeRewards from "./crime-rewards"
 import CrimeTimestamps from "./crime-timestamps"
+import CrimeCost from "./crime-cost"
 import { canReloadIndividualCrimes } from "@/lib/api-scopes"
 import { getSimulatorUrl } from "@/lib/crimes/simulator-urls"
 import { getRoleWeight, shouldAlertLowCPR } from "@/lib/crimes/role-weights"
@@ -191,8 +192,25 @@ export default function CrimeCard({
 
       <CrimeTimestamps crime={crime} currentTime={currentTime} memberMap={new Map(members.map((m) => [m.id, m]))} />
 
-      {crime.status === "Successful" && crime.rewards && (
-        <CrimeRewards rewards={crime.rewards} items={items} onItemClick={onItemClick} memberMap={memberMap} />
+      {crime.status === "Successful" && (
+        <div className="flex gap-2 flex-wrap mb-2">
+          {crime.rewards && (
+            <CrimeRewards rewards={crime.rewards} items={items} onItemClick={onItemClick} memberMap={memberMap} />
+          )}
+          <CrimeCost slots={crime.slots} items={items} onItemClick={onItemClick} crimeStatus={crime.status} />
+        </div>
+      )}
+
+      {crime.status === "Failed" && (
+        <div className="mb-2">
+          <CrimeCost slots={crime.slots} items={items} onItemClick={onItemClick} crimeStatus={crime.status} />
+        </div>
+      )}
+
+      {(crime.status === "Planning" || crime.status === "Recruiting") && filledSlots === totalSlots && (
+        <div className="mb-2">
+          <CrimeCost slots={crime.slots} items={items} onItemClick={onItemClick} crimeStatus={crime.status} />
+        </div>
       )}
 
       <div className="pt-1.5 border-t border-border/30">

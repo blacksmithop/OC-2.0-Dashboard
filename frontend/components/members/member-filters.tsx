@@ -39,7 +39,7 @@ export function MemberFilters({
       {!collapsed && (
         <div className="p-4 pt-0 space-y-4 border-t-2 border-border">
           <div className="space-y-2">
-            <label className="text-xs text-foreground pt-3 font-bold block">Sort By</label>
+            <label className="text-xs text-foreground font-bold block">Sort By</label>
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => onSortChange("none")}

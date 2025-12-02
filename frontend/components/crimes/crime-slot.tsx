@@ -74,7 +74,7 @@ export default function CrimeSlot({
   }
 
   const memberData = slot.user?.id ? members.find((m) => m.id === slot.user.id) : null
-  const isFlying = memberData?.status?.state === "Traveling"
+  const isFlying = memberData?.status?.state === "Traveling" && ["Planning", "Recruiting"].includes(crimeStatus)
 
   return (
     <div className="space-y-1">
@@ -131,16 +131,27 @@ export default function CrimeSlot({
                     <span className="text-xs text-muted-foreground font-bold">{slot.user.progress.toFixed(1)}%</span>
                   </div>
                 )}
-                {crimeStatus === "Successful" && slot.user.outcome && (
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-xs font-bold border shrink-0 ${
-                      slot.user.outcome === "Successful"
-                        ? "bg-green-500/20 text-green-400 border-green-500/40"
-                        : "bg-red-500/20 text-red-400 border-red-500/40"
-                    }`}
-                  >
-                    {slot.user.outcome}
-                  </span>
+                {(crimeStatus === "Successful" || crimeStatus === "Failed") && (
+                  <>
+                    {slot.user.outcome && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-xs font-bold border shrink-0 ${
+                          slot.user.outcome === "Successful"
+                            ? "bg-green-500/20 text-green-400 border-green-500/40"
+                            : "bg-red-500/20 text-red-400 border-red-500/40"
+                        }`}
+                      >
+                        {slot.user.outcome}
+                      </span>
+                    )}
+                    {slot.user.item_outcome?.outcome === "used" &&
+                      slot.item_requirement &&
+                      !slot.item_requirement.is_reusable && (
+                        <span className="px-1.5 py-0.5 rounded text-xs font-bold border shrink-0 bg-orange-500/20 text-orange-400 border-orange-500/40">
+                          Item: Consumed
+                        </span>
+                      )}
+                  </>
                 )}
               </>
             ) : (
@@ -179,23 +190,6 @@ export default function CrimeSlot({
             )}
           </div>
         </div>
-        {crimeStatus === "Successful" && slot.user?.item_outcome && slot.item_requirement && (
-          <div className="mt-1 pl-4 text-[10px]">
-            {slot.user.item_outcome.outcome === "used" ? (
-              <span
-                className={`px-1.5 py-0.5 rounded font-bold border inline-block ${
-                  slot.item_requirement.is_reusable
-                    ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
-                    : "bg-orange-500/20 text-orange-400 border-orange-500/40"
-                }`}
-              >
-                Item: {slot.item_requirement.is_reusable ? "Not consumed" : "Consumed"}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">Item: {slot.user.item_outcome.outcome}</span>
-            )}
-          </div>
-        )}
       </div>
 
       {showRecommendations && recommendations.length > 0 && (
