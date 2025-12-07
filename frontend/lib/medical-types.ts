@@ -38,6 +38,8 @@ export const DEFAULT_MEDICAL_ALERTS: MedicalAlertSettings = {
   // First Aid Kits - 100 default
   68: 100, // Small First Aid Kit
   69: 100, // First Aid Kit
+  70: 100, // Specialist First Aid Kit
+  1040: 100, // Specialist Bandage
 }
 
 import { getItemFromFallback } from "./items-fallback"
@@ -65,6 +67,8 @@ export const ALL_EMPTY_BLOOD_BAGS = [{ id: 731, name: "Empty Blood Bag" }].map((
 export const ALL_FIRST_AID_KITS = [
   { id: 68, name: "Small First Aid Kit" },
   { id: 69, name: "First Aid Kit" },
+  { id: 70, name: "Specialist First Aid Kit" },
+  { id: 1040, name: "Specialist Bandage" },
 ].map((item) => {
   const fallback = getItemFromFallback(item.id)
   return { id: item.id, name: fallback?.name || item.name }

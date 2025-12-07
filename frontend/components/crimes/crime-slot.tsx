@@ -7,6 +7,7 @@ import { ProgressRing } from "./progress-ring"
 import { getPositionPassRateColor } from "@/lib/crimes/colors"
 import { getWeightColor, getWeightBgColor } from "@/lib/crimes/role-weights"
 import { getRecommendedMembers, type MemberRecommendation, type CPRTrackerData } from "@/lib/integration/cpr-tracker"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 interface CrimeSlotProps {
   slot: Slot
@@ -75,6 +76,7 @@ export default function CrimeSlot({
 
   const memberData = slot.user?.id ? members.find((m) => m.id === slot.user.id) : null
   const isFlying = memberData?.status?.state === "Traveling" && ["Planning", "Recruiting"].includes(crimeStatus)
+  const travelDescription = isFlying ? memberData?.status?.description : null
 
   return (
     <div className="space-y-1">
@@ -102,11 +104,46 @@ export default function CrimeSlot({
             )}
             {slot.user ? (
               <>
-                {isAtRisk && <span className="text-orange-400">⚠️</span>}
-                {isHighRiskRole && (
-                  <AlertTriangle size={14} className="text-red-400 shrink-0" title="High weight role with low CPR!" />
+                {isAtRisk && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-orange-400 cursor-help">⚠️</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Low CPR Participant</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
-                {isFlying && <Plane size={14} className="text-blue-400 shrink-0" title="Member is traveling" />}
+                {isHighRiskRole && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="shrink-0">
+                          <AlertTriangle size={14} className="text-red-400 cursor-help" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Low CPR in High Weightage Role</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {isFlying && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="shrink-0">
+                          <Plane size={14} className="text-blue-400 cursor-help" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{travelDescription || "Member is traveling"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
                 <a
                   href={`https://www.torn.com/profiles.php?XID=${slot.user.id}`}
                   target="_blank"
