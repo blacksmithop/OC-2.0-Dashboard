@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { Input } from "@/components/ui/input"
-import { Search, RotateCcw, Users } from 'lucide-react'
+import { Search, RotateCcw, Users } from "lucide-react"
 import { MemberFilters } from "./member-filters"
 import { MemberCard } from "./member-card"
 import { MemberCrimeStats } from "./member-crime-stats"
@@ -275,7 +275,7 @@ export default function MemberList({
         onToggleCollapse={() => setFiltersCollapsed(!filtersCollapsed)}
       />
 
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
         {sortedMembers.length === 0 ? (
           <div className="text-center py-12 px-4">
             <div className="text-muted-foreground mb-2">
@@ -286,35 +286,37 @@ export default function MemberList({
             </p>
           </div>
         ) : (
-          sortedMembers.map((member) => {
-            const report = getMemberCrimeReport(member.id)
-            const isReportExpanded = !collapsedMembers.has(member.id)
-            const isInCrime = participatingMemberIds.has(member.id)
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {sortedMembers.map((member) => {
+              const report = getMemberCrimeReport(member.id)
+              const isReportExpanded = !collapsedMembers.has(member.id)
+              const isInCrime = participatingMemberIds.has(member.id)
 
-            return (
-              <MemberCard
-                key={member.id}
-                member={member}
-                isInCrime={isInCrime}
-                crimeInfo={isInCrime ? memberToCrimeMap[member.id] : undefined}
-                report={report}
-                isReportExpanded={isReportExpanded}
-                onToggleReport={() => toggleMemberReport(member.id)}
-                onFilterByCrime={onFilterByCrime}
-              >
-                {report && report.total > 0 && (
-                  <>
-                    <MemberCrimeStats report={report} />
-                    <MemberCrimeReport
-                      report={report}
-                      isExpanded={isReportExpanded}
-                      onToggle={() => toggleMemberReport(member.id)}
-                    />
-                  </>
-                )}
-              </MemberCard>
-            )
-          })
+              return (
+                <MemberCard
+                  key={member.id}
+                  member={member}
+                  isInCrime={isInCrime}
+                  crimeInfo={isInCrime ? memberToCrimeMap[member.id] : undefined}
+                  report={report}
+                  isReportExpanded={isReportExpanded}
+                  onToggleReport={() => toggleMemberReport(member.id)}
+                  onFilterByCrime={onFilterByCrime}
+                >
+                  {report && report.total > 0 && (
+                    <>
+                      <MemberCrimeStats report={report} />
+                      <MemberCrimeReport
+                        report={report}
+                        isExpanded={isReportExpanded}
+                        onToggle={() => toggleMemberReport(member.id)}
+                      />
+                    </>
+                  )}
+                </MemberCard>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>

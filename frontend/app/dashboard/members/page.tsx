@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw } from 'lucide-react'
+import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw } from "lucide-react"
 import MemberList from "@/components/members/member-list"
 import { fetchAndCacheItems } from "@/lib/cache/items-cache"
 import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
@@ -14,7 +14,7 @@ import { clearAllCache } from "@/lib/cache/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { canAccessBalance } from "@/lib/api-scopes"
 import { fetchFFScouterStats } from "@/lib/integration/ffscouter"
-import { fetchYataMembers, YataMemberData } from "@/lib/yata"
+import { fetchYataMembers } from "@/lib/yata"
 
 interface Member {
   id: number
@@ -104,19 +104,19 @@ export default function MembersPage() {
 
       const membersData = await fetchAndCacheMembers(apiKey)
       const membersArray = Array.from(membersData.values())
-      
+
       if (balanceData?.members) {
         balanceData.members.forEach((balanceMember) => {
           const member = membersArray.find((m: any) => m.id === balanceMember.id)
           if (member) {
-            (member as any).money = balanceMember.money
+            ;(member as any).money = balanceMember.money
           }
         })
       }
 
       const memberIds = membersArray.map((m: any) => m.id)
       const ffScouterData = await fetchFFScouterStats(memberIds)
-      
+
       membersArray.forEach((member: any) => {
         const statData = ffScouterData.get(member.id)
         if (statData && statData.bs_estimate_human) {
@@ -135,9 +135,12 @@ export default function MembersPage() {
 
       setMembers(membersArray)
 
-      const crimesRes = await fetch("https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes", {
-        headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
-      })
+      const crimesRes = await fetch(
+        "https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes",
+        {
+          headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
+        },
+      )
 
       if (!crimesRes.ok) {
         await handleApiError(crimesRes, "/faction/crimes")
@@ -348,19 +351,7 @@ export default function MembersPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-2xl mx-auto">
-          {hasBalanceScope && factionBalance !== null && (
-            <div className="bg-card border-2 border-border rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Faction Balance</span>
-                </div>
-                <div className="text-2xl font-bold text-green-400">
-                  ${new Intl.NumberFormat().format(factionBalance)}
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="max-w-7xl mx-auto">
           <MemberList
             members={members}
             crimes={activeRecruitingCrimes}
