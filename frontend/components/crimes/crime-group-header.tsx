@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { ChevronDown, ArrowUpDown } from "lucide-react"
+import { ChevronDown, ArrowUpDown, Globe } from "lucide-react"
 import { getHeaderColor } from "@/lib/crimes/colors"
 
 interface CrimeGroupHeaderProps {
@@ -12,9 +12,11 @@ interface CrimeGroupHeaderProps {
   isExpanded: boolean
   currentSort: "difficulty" | "filled" | "timeLeft" | "none"
   isFilteringAtRisk: boolean
+  isFilteringOverseas: boolean
   onToggleExpanded: () => void
   onSort: (sortType: "difficulty" | "filled" | "timeLeft") => void
   onToggleAtRiskFilter: (e: React.MouseEvent) => void
+  onToggleOverseasFilter: (e: React.MouseEvent) => void
 }
 
 export default function CrimeGroupHeader({
@@ -24,9 +26,11 @@ export default function CrimeGroupHeader({
   isExpanded,
   currentSort,
   isFilteringAtRisk,
+  isFilteringOverseas,
   onToggleExpanded,
   onSort,
   onToggleAtRiskFilter,
+  onToggleOverseasFilter,
 }: CrimeGroupHeaderProps) {
   return (
     <div className="mb-3">
@@ -77,7 +81,7 @@ export default function CrimeGroupHeader({
             <ArrowUpDown size={14} />
             Time
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <button
               onClick={onToggleAtRiskFilter}
               className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
@@ -87,6 +91,17 @@ export default function CrimeGroupHeader({
               }`}
             >
               ⚠️ Low CPR
+            </button>
+            <button
+              onClick={onToggleOverseasFilter}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold ${
+                isFilteringOverseas
+                  ? "bg-blue-500 text-white border-blue-500"
+                  : "bg-card text-foreground border-border hover:border-blue-500"
+              }`}
+            >
+              <Globe size={14} />
+              Overseas
             </button>
           </div>
         </div>

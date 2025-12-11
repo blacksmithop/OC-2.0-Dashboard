@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw, BarChart3 } from "lucide-react"
+import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw, BarChart3, Search, X } from "lucide-react"
 import CrimesList from "@/components/crimes/crimes-list"
 import CrimeSummary from "@/components/crimes/crime-summary"
 import { fetchAndCacheItems } from "@/lib/cache/items-cache"
@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { CrimeDateFilter } from "@/components/crimes/crime-date-filter"
 import { getMembersNotInOC } from "@/lib/crimes/members-not-in-oc" // Import the missing function
 import { isValid } from "date-fns" // Import isValid function from date-fns
+import { Input } from "@/components/ui/input"
 
 export default function CrimesPage() {
   const router = useRouter()
@@ -56,6 +57,7 @@ export default function CrimesPage() {
   const [memberMap, setMemberMap] = useState<Map<number, Member>>(new Map())
   const [customDateRange, setCustomDateRange] = useState<{ start: Date; end: Date } | null>(null)
   const [membersNotInOC, setMembersNotInOC] = useState<Member[]>([]) // Declare the missing variable
+  const [usernameFilter, setUsernameFilter] = useState("") // Added username search state
 
   useEffect(() => {
     const apiKey = localStorage.getItem("factionApiKey")
@@ -433,9 +435,25 @@ export default function CrimesPage() {
     }
   }
 
-  const filteredCrimes = filteredMemberId
-    ? crimes.filter((crime) => crime.slots.some((slot) => slot.user?.id === filteredMemberId))
-    : crimes
+  const filteredCrimes = useMemo(() => {
+    let filtered = filteredMemberId
+      ? crimes.filter((crime) => crime.slots.some((slot) => slot.user?.id === filteredMemberId))
+      : crimes
+
+    // Apply username filter
+    if (usernameFilter.trim()) {
+      const searchLower = usernameFilter.toLowerCase()
+      filtered = filtered.filter((crime) =>
+        crime.slots.some((slot) => {
+          if (!slot.user?.id) return false
+          const member = members.find((m) => m.id === slot.user.id)
+          return member?.name.toLowerCase().includes(searchLower)
+        }),
+      )
+    }
+
+    return filtered
+  }, [crimes, filteredMemberId, usernameFilter, members])
 
   const { minDate, maxDate } = useMemo(() => {
     if (crimes.length === 0) {
@@ -489,7 +507,6 @@ export default function CrimesPage() {
     })
 
     return filteredCrimes.filter((crime) => {
-      // Convert epoch seconds to milliseconds for comparison
       const crimeDate = new Date(crime.created_at * 1000)
       const isInRange = crimeDate >= customDateRange.start && crimeDate <= customDateRange.end
 
@@ -516,6 +533,18 @@ export default function CrimesPage() {
       setCustomDateRange({ start, end })
     }
   }, [crimes.length, minDate, maxDate])
+
+  const handleClearMemberFilter = () => {
+    setFilteredMemberId(null)
+    setSelectedMemberId(null)
+    router.push("/dashboard/crimes")
+    toast({
+      title: "Filter Cleared",
+      description: "Member filter has been removed",
+    })
+  }
+
+  const filteredMember = filteredMemberId ? members.find((m) => m.id === filteredMemberId) : null
 
   if (isLoading) {
     return (
@@ -584,45 +613,84 @@ export default function CrimesPage() {
             </DropdownMenu>
           </div>
         </div>
+
+        <div className="mt-4 flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Filter by username..."
+              value={usernameFilter}
+              onChange={(e) => setUsernameFilter(e.target.value)}
+              className="pl-10 pr-9 h-10 bg-background border-2 border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
+            />
+            {usernameFilter && (
+              <button
+                onClick={() => setUsernameFilter("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          {filteredMember && (
+            <button
+              onClick={handleClearMemberFilter}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors flex items-center gap-2 whitespace-nowrap font-bold"
+              title="Clear member filter"
+            >
+              <X size={16} />
+              Clear Filter: {filteredMember.name}
+            </button>
+          )}
+        </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-6">
-            <CrimeDateFilter
-              minDate={minDate}
-              maxDate={maxDate}
-              startDate={initialStartDate}
-              endDate={initialEndDate}
-              onDateRangeChange={handleDateRangeChange}
-            />
-          </div>
+      <ResetConfirmationDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen} onConfirm={handleReset} />
+
+      <main className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <CrimeDateFilter
+            minDate={minDate}
+            maxDate={maxDate}
+            initialStartDate={initialStartDate}
+            initialEndDate={initialEndDate}
+            onDateRangeChange={handleDateRangeChange}
+          />
 
           <CrimeSummary
             crimes={dateFilteredCrimes}
+            members={members}
             items={items}
             minPassRate={minPassRate}
-            onMinPassRateChange={setMinPassRate}
+            setMinPassRate={setMinPassRate}
+            cprTrackerData={cprTrackerData}
+            cprTrackerEnabled={cprTrackerEnabled}
             membersNotInOC={membersNotInOC}
-            allCrimes={crimes}
-            memberMap={memberMap}
-            showDiscordButtons={true}
-            showItemsNeeded={true}
           />
+
           <CrimesList
             crimes={dateFilteredCrimes}
             members={members}
             items={items}
-            onCrimeReload={handleReloadCrime}
+            onReloadCrime={handleReloadCrime}
             minPassRate={minPassRate}
-            factionId={factionId}
             cprTrackerData={cprTrackerData}
             cprTrackerEnabled={cprTrackerEnabled}
+            membersNotInOC={membersNotInOC}
+            onMemberNameClick={
+              filteredMemberId
+                ? undefined
+                : (memberId) => {
+                    setFilteredMemberId(memberId)
+                    setSelectedMemberId(memberId)
+                  }
+            }
+            selectedMemberId={selectedMemberId}
           />
         </div>
       </main>
-
-      <ResetConfirmationDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen} onConfirm={handleReset} />
     </div>
   )
 }

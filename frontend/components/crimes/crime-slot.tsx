@@ -2,7 +2,7 @@
 
 import type { Slot, Member } from "@/types/crime"
 import { useState } from "react"
-import { AlertTriangle, Plane } from "lucide-react"
+import { AlertTriangle, Plane, Globe } from "lucide-react"
 import { ProgressRing } from "./progress-ring"
 import { getPositionPassRateColor } from "@/lib/crimes/colors"
 import { getWeightColor, getWeightBgColor } from "@/lib/crimes/role-weights"
@@ -75,8 +75,10 @@ export default function CrimeSlot({
   }
 
   const memberData = slot.user?.id ? members.find((m) => m.id === slot.user.id) : null
-  const isFlying = memberData?.status?.state === "Traveling" && ["Planning", "Recruiting"].includes(crimeStatus)
-  const travelDescription = isFlying ? memberData?.status?.description : null
+  const isTraveling = memberData?.status?.state === "Traveling" && ["Planning", "Recruiting"].includes(crimeStatus)
+  const isAbroad = memberData?.status?.state === "Abroad" && ["Planning", "Recruiting"].includes(crimeStatus)
+  const travelDescription = isTraveling || isAbroad ? memberData?.status?.description : null
+  const isReturning = travelDescription?.toLowerCase().includes("returning to") || false
 
   return (
     <div className="space-y-1">
@@ -130,12 +132,26 @@ export default function CrimeSlot({
                     </Tooltip>
                   </TooltipProvider>
                 )}
-                {isFlying && (
+                {isAbroad && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="shrink-0">
-                          <Plane size={14} className="text-blue-400 cursor-help" />
+                          <Globe size={14} className="text-blue-400 cursor-help" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{travelDescription || "Member is abroad"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {isTraveling && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="shrink-0">
+                          <Plane size={14} className={`text-blue-400 cursor-help ${isReturning ? "rotate-180" : ""}`} />
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>

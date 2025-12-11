@@ -36,6 +36,7 @@ export default function CrimesList({
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [sortBy, setSortBy] = useState<{ [key: string]: "difficulty" | "filled" | "timeLeft" | "none" }>({})
   const [filterAtRisk, setFilterAtRisk] = useState<{ [key: string]: boolean }>({})
+  const [filterOverseas, setFilterOverseas] = useState<{ [key: string]: boolean }>({})
   const [currentTime, setCurrentTime] = useState(Date.now() / 1000)
   const [reloadingCrimes, setReloadingCrimes] = useState<Set<number>>(new Set())
   const [visibleCrimes, setVisibleCrimes] = useState<{ [key: string]: number }>({})
@@ -76,6 +77,15 @@ export default function CrimesList({
     )
   }
 
+  const hasOverseasMembers = (crime: Crime) => {
+    return crime.slots.some((slot) => {
+      if (!slot.user?.id) return false
+      const member = members.find((m) => m.id === slot.user.id)
+      const status = member?.status?.state
+      return status === "Traveling" || status === "Abroad"
+    })
+  }
+
   const crimesGrouped = useMemo(() => {
     const groups: { [key: string]: Crime[] } = {}
     const originalCounts: { [key: string]: number } = {}
@@ -98,6 +108,10 @@ export default function CrimesList({
         groups[status] = groups[status].filter((crime) => hasAtRiskMembers(crime))
       }
 
+      if (filterOverseas[status]) {
+        groups[status] = groups[status].filter((crime) => hasOverseasMembers(crime))
+      }
+
       const sort = sortBy[status] || "none"
       if (sort !== "none") {
         groups[status].sort((a, b) => {
@@ -118,7 +132,7 @@ export default function CrimesList({
     })
 
     return { groups, originalCounts }
-  }, [crimes, sortBy, filterAtRisk, minPassRate])
+  }, [crimes, sortBy, filterAtRisk, filterOverseas, minPassRate, members])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -197,6 +211,7 @@ export default function CrimesList({
     const isExpanded = !collapsedStatus.has(status)
     const currentSort = sortBy[status] || "none"
     const isFilteringAtRisk = filterAtRisk[status] || false
+    const isFilteringOverseas = filterOverseas[status] || false
     const visibleCount = visibleCrimes[status] || 20
     const hasMoreCrimes = visibleCount < crimes.length
     const displayedCrimes = crimes.slice(0, visibleCount)
@@ -226,6 +241,14 @@ export default function CrimesList({
       }))
     }
 
+    const toggleOverseasFilter = (e: React.MouseEvent) => {
+      e.stopPropagation()
+      setFilterOverseas((prev) => ({
+        ...prev,
+        [status]: !prev[status],
+      }))
+    }
+
     return (
       <div key={status}>
         <CrimeGroupHeader
@@ -235,9 +258,11 @@ export default function CrimesList({
           isExpanded={isExpanded}
           currentSort={currentSort}
           isFilteringAtRisk={isFilteringAtRisk}
+          isFilteringOverseas={isFilteringOverseas}
           onToggleExpanded={toggleExpanded}
           onSort={handleSort}
           onToggleAtRiskFilter={toggleAtRiskFilter}
+          onToggleOverseasFilter={toggleOverseasFilter}
         />
 
         {isExpanded && (
@@ -247,7 +272,9 @@ export default function CrimesList({
                 <p className="text-muted-foreground text-sm">
                   {isFilteringAtRisk
                     ? "No crimes with members below the minimum pass rate"
-                    : "No crimes in this category"}
+                    : isFilteringOverseas
+                      ? "No crimes with overseas members"
+                      : "No crimes in this category"}
                 </p>
               </div>
             ) : (
