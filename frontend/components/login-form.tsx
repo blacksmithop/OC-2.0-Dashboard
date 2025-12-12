@@ -72,11 +72,12 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
       </div>
 
       <div className="bg-card/50 border border-border rounded-lg p-4 space-y-2">
-        <h3 className="text-sm font-semibold text-foreground text-center">Data Policy</h3>
-        <ul className="text-xs text-muted-foreground space-y-1.5">
+        <h3 className="text-lg font-semibold text-foreground text-center">Data Policy</h3>
+        <ul className="text-sm space-y-1.5">
+          <li>• You need <span className="font-bold">Faction API</span> access</li>
           <li>• Your API Key is stored in the browser</li>
-          <li>• Logging out will remove your key</li>
           <li>• All API calls are done in the browser</li>
+          <li>• Logging out will remove your key & any integrations</li>
           <li>
             • For queries please ask in the{" "}
             <a
@@ -85,7 +86,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              forums
+              forum post
             </a>{" "}
             or DM me :)
           </li>

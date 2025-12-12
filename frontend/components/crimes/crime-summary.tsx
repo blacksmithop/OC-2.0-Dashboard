@@ -318,6 +318,33 @@ export default function CrimeSummary({
 
   return (
     <div className="space-y-6">
+      {/* History */}
+      <div className="bg-card p-3 rounded-lg border border-border/50">
+        <div className="text-xs text-muted-foreground mb-2 font-bold">History</div>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Planning:</span>
+            <span className="font-bold text-blue-400">{summary.statusCounts.Planning}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Recruiting:</span>
+            <span className="font-bold text-purple-400">{summary.statusCounts.Recruiting}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Successful:</span>
+            <span className="font-bold text-green-400">{summary.statusCounts.Successful}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Failure:</span>
+            <span className="font-bold text-red-400">{summary.statusCounts.Failed}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Expired:</span>
+            <span className="font-bold text-gray-400">{summary.statusCounts.Expired}</span>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm font-medium text-muted-foreground">Total Value</div>
@@ -353,9 +380,6 @@ export default function CrimeSummary({
       )}
 
       <ItemModal item={selectedItem} onClose={() => setSelectedItem(null)} />
-
-      {/* Summary Stats */}
-      {/* Removed redundant summary stats section */}
 
       {/* Minimum Pass Rate setting */}
       {minPassRate !== undefined && onMinPassRateChange && (
@@ -601,33 +625,6 @@ export default function CrimeSummary({
           </Alert>
         </div>
       )}
-
-      {/* History */}
-      <div className="bg-card p-3 rounded-lg border border-border/50">
-        <div className="text-xs text-muted-foreground mb-2 font-bold">History</div>
-        <div className="flex flex-wrap gap-3 text-sm">
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Planning:</span>
-            <span className="font-bold text-blue-400">{summary.statusCounts.Planning}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Recruiting:</span>
-            <span className="font-bold text-purple-400">{summary.statusCounts.Recruiting}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Successful:</span>
-            <span className="font-bold text-green-400">{summary.statusCounts.Successful}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Failure:</span>
-            <span className="font-bold text-red-400">{summary.statusCounts.Failed}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Expired:</span>
-            <span className="font-bold text-gray-400">{summary.statusCounts.Expired}</span>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

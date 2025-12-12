@@ -17,50 +17,57 @@ export const API_SCOPES: ApiScope[] = [
   {
     id: "members",
     name: "members",
-    description: "Faction member data",
+    description: "Faction member list",
     required: true,
     category: "faction",
   },
   {
     id: "crimes",
     name: "crimes",
-    description: "Organized crimes data",
+    description: "Faction OC history",
     required: true,
     category: "faction",
   },
   {
     id: "crime",
     name: "crime",
-    description: "Individual crime refresh (enables per-crime reload)",
-    required: false,
+    description: "OC Information",
+    required: true,
     category: "faction",
+  },
+  {
+    id: "items",
+    name: "items",
+    description: "Items in Torn",
+    required: true,
+    category: "torn",
   },
   {
     id: "armorynews",
     name: "armorynews",
-    description: "Armory news logs",
+    description: "Faction armory logs",
     required: false,
     category: "faction",
   },
   {
     id: "balance",
     name: "balance",
-    description: "Member balance information",
+    description: "Faction member balance",
     required: false,
     category: "faction",
   },
   {
     id: "fundsnews",
     name: "fundsnews",
-    description: "Fund transfer logs",
+    description: "Faction funds logs",
     required: false,
     category: "faction",
   },
   {
     id: "crimenews",
     name: "crimenews",
-    description: "Crime spawn and completion logs",
-    required: false,
+    description: "OC Scope usage",
+    required: true,
     category: "faction",
   },
   {
@@ -69,13 +76,6 @@ export const API_SCOPES: ApiScope[] = [
     description: "Faction medical items",
     required: false,
     category: "faction",
-  },
-  {
-    id: "items",
-    name: "items",
-    description: "Item database for crime rewards",
-    required: true,
-    category: "torn",
   },
 ]
 
@@ -105,8 +105,7 @@ export function getSelectedScopes(): string[] {
   if (typeof window === "undefined") return []
   const stored = localStorage.getItem("apiScopes")
   if (!stored) {
-    // Default to all scopes if not set
-    return API_SCOPES.map((s) => s.id)
+    return API_SCOPES.filter((s) => s.required).map((s) => s.id)
   }
   return JSON.parse(stored)
 }

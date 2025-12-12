@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import LoginForm from "@/components/login-form"
 
@@ -31,17 +31,14 @@ export default function Home() {
     <main className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md flex-1 flex flex-col justify-center">
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-foreground mb-2">Torn OC App</h1>
+          <h1 className="text-5xl font-bold text-foreground mb-2">OC 2.0 Dashboard</h1>
           <p className="text-muted-foreground text-lg">Make managing OC's a breeze</p>
         </div>
         <LoginForm onLogin={() => setIsLoggedIn(true)} />
       </div>
       <footer className="w-full text-center py-4 text-sm space-y-2">
         <div>
-          <Link
-            href="/dashboard/credits"
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <Link href="/dashboard/credits" className="text-muted-foreground hover:text-foreground transition-colors">
             Credits
           </Link>
         </div>

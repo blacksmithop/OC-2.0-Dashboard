@@ -1,48 +1,63 @@
-import Link from "next/link"
-import { ArrowLeft } from 'lucide-react'
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default function CreditsPage() {
   const credits = [
     {
       name: "Allenone",
       id: "2033011",
-      contribution: "For the honest feedback about various features and their",
-      apiText: "Probability API",
+      contribution: "For the honest feedback and providing an API for",
+      apiText: "Role Weights & Probability",
       link: "https://tornprobability.com:3000/api-docs",
+    },
+    {
+      name: "Emforus",
+      id: "2535044",
+      contribution: "For the awesome Crimes 2.0 guides and their simulator ",
+      apiText: "CrimesHub",
+      link: "https://crimeshub-2b4b0.firebaseapp.com/",
     },
     {
       name: "zachwozn",
       id: "2301700",
-      contribution: "For transparency about API Key and data storage/usage",
+      contribution:
+        "Highlighting importance of transparency on API Key and data usage",
     },
     {
       name: "DinDjarin",
       id: "3275819",
-      contribution: "For the suggestion to add historical filtering and back-filling of older OC's",
+      contribution:
+        "For the suggestion to add historical filtering and back-filling of older OC's",
     },
     {
       name: "Weav3r",
       id: "1853324",
-      contribution: "For their",
-      apiText: "marketplace API",
+      contribution: "For creating and maintaining the awesome",
+      apiText: "weav3r.dev",
       link: "https://weav3r.dev/api-docs.html",
     },
     {
       name: "TheBurninator",
       id: "2744382",
-      contribution: "For recommending the addition of faction funds",
+      contribution: "For suggesting the addition of Armoy & Funds page",
     },
     {
       name: "Macca",
       id: "508375",
-      contribution: "Without you and your support I wouldn't have made this dashboard in the first place",
+      contribution:
+        "Without you and your support I wouldn't have made this dashboard in the first place",
     },
     {
       names: ["Exiled", "NoNitro"],
       ids: ["3527247", "3562297"],
-      contribution: "For motivating me with their discord bot for UFD",
+      contribution: "For all the feedback",
     },
-  ]
+    {
+      name: "SmiLego",
+      id: "3656385",
+      contribution: "For pointing out the little things that make UX better",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -62,8 +77,9 @@ export default function CreditsPage() {
       <main className="flex-1 p-6">
         <div className="max-w-3xl mx-auto">
           <p className="text-muted-foreground mb-6">
-            This site was made possible thanks to the suggestions and feedback from a lot of users. Some of the
-            functionality you see makes use of APIs, userscripts and data provided by members of the community.
+            This site was made possible thanks to the suggestions and feedback
+            from a lot of users. Some of the functionality you see makes use of
+            APIs, userscripts and data provided by members of the community.
           </p>
 
           <ul className="space-y-4 list-none">
@@ -77,17 +93,24 @@ export default function CreditsPage() {
                       {credit.names.map((name, i) => (
                         <span key={i}>
                           <a
-                            href={`https://www.torn.com/profiles.php?XID=${credit.ids![i]}`}
+                            href={`https://www.torn.com/profiles.php?XID=${
+                              credit.ids![i]
+                            }`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-semibold text-primary hover:text-primary/80 transition-colors"
                           >
                             {name} [{credit.ids![i]}]
                           </a>
-                          {i < credit.names.length - 1 && <span className="text-muted-foreground"> and </span>}
+                          {i < credit.names.length - 1 && (
+                            <span className="text-muted-foreground"> and </span>
+                          )}
                         </span>
                       ))}
-                      <span className="text-foreground"> {credit.contribution}</span>
+                      <span className="text-foreground">
+                        {" "}
+                        {credit.contribution}
+                      </span>
                     </div>
                   ) : (
                     // Single person
@@ -100,7 +123,10 @@ export default function CreditsPage() {
                       >
                         {credit.name} [{credit.id}]
                       </a>
-                      <span className="text-foreground"> {credit.contribution}</span>
+                      <span className="text-foreground">
+                        {" "}
+                        {credit.contribution}
+                      </span>
                       {credit.apiText && credit.link && (
                         <>
                           {" "}
@@ -123,8 +149,9 @@ export default function CreditsPage() {
 
           <div className="mt-8 pt-6 border-t border-border">
             <p className="text-foreground">
-              And last but not the least, <span className="text-primary font-semibold">you</span> for using my
-              application :)
+              And last but not the least,{" "}
+              <span className="text-primary font-semibold">you</span> for using
+              my application :)
             </p>
           </div>
         </div>
@@ -143,5 +170,5 @@ export default function CreditsPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

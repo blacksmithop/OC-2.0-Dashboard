@@ -495,37 +495,6 @@ export default function ReportsPage() {
 
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-5xl mx-auto space-y-6">
-          {crimes.length > 0 && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <div className="text-sm font-medium text-muted-foreground">Total Crimes</div>
-                  <div className="text-2xl font-bold text-primary">{totalCrimes.toLocaleString()}</div>
-                </div>
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <div className="text-sm font-medium text-muted-foreground">Total Value</div>
-                  <div className="text-2xl font-bold text-green-500">{formatCurrency(summary.totalValue)}</div>
-                </div>
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <div className="text-sm font-medium text-muted-foreground">Direct Money</div>
-                  <div className="text-2xl font-bold text-green-500">{formatCurrency(summary.totalMoney)}</div>
-                </div>
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <div className="text-sm font-medium text-muted-foreground">Item Value</div>
-                  <div className="text-2xl font-bold text-orange-500">{formatCurrency(summary.totalItemValue)}</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <div className="text-sm font-medium text-muted-foreground">Total Respect</div>
-                  <div className="text-2xl font-bold text-blue-500">{formatNumber(summary.totalRespect)}</div>
-                </div>
-              </div>
-
-              <CrimeSuccessCharts crimes={crimes} />
-            </>
-          )}
 
           <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -588,6 +557,8 @@ export default function ReportsPage() {
                   </div>
                 </div>
               </div>
+
+              <CrimeSuccessCharts crimes={crimes} />
 
               <div className="bg-card border border-border rounded-lg p-4 space-y-4">
                 <div className="flex flex-col sm:flex-row gap-3">
