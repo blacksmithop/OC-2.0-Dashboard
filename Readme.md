@@ -48,7 +48,7 @@ Head over to [oc.tornrevive.page](https://oc.tornrevive.page/) and create your C
 
 <img width="25%" height="25%" alt="image" src="https://github.com/user-attachments/assets/5b97f02e-1753-491e-b81e-4e663d20428f" />
 
-<img width="25$" height="25%" alt="image" src="https://github.com/user-attachments/assets/c3b3bf46-25e5-4109-87d9-9834a6525852" />
+<img width="25%" height="25%" alt="image" src="https://github.com/user-attachments/assets/c3b3bf46-25e5-4109-87d9-9834a6525852" />
 
 ### Crime Reports
 
