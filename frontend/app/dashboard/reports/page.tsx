@@ -490,12 +490,6 @@ export default function ReportsPage() {
 
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-5xl mx-auto space-y-6">
-          {crimes.length > 0 && (
-            <>
-              <CrimeSuccessCharts crimes={crimes} />
-            </>
-          )}
-
           <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-foreground">Fetch Historical Data</h3>

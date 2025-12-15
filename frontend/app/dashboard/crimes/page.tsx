@@ -621,6 +621,7 @@ export default function CrimesPage() {
             cprTrackerData={cprTrackerData}
             cprTrackerEnabled={cprTrackerEnabled}
             membersNotInOC={membersNotInOC}
+            showItemsNeeded={true}
           />
 
           <CrimesList
