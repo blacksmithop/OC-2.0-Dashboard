@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { getScenarioInfo } from "@/lib/crimes/scenarios"
 import { crimeApiCache } from "@/lib/cache/crime-api-cache"
+import { db, STORES } from "@/lib/db/indexeddb"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
 import ScopeUsageHeader from "@/components/scope-usage/scope-usage-header"
 import ScopeUsageStats from "@/components/scope-usage/scope-usage-stats"
 import ScopeUsageSummary from "@/components/scope-usage/scope-usage-summary"
@@ -48,22 +50,29 @@ export default function ScopeUsagePage() {
   const [crimeIdFilter, setCrimeIdFilter] = useState("")
 
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (!apiKey) {
-      router.push("/")
-      return
-    }
-
-    const savedMaxFetch = localStorage.getItem("scopeMaxFetch")
-    if (savedMaxFetch) {
-      const parsed = Number.parseInt(savedMaxFetch, 10)
-      if (!Number.isNaN(parsed) && parsed > 0) {
-        setMaxFetchCount(parsed)
+    const initialize = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (!apiKey) {
+        router.push("/")
+        return
       }
+
+      const savedMaxFetch = await db.get<number>(STORES.SETTINGS, "scopeMaxFetch")
+      if (savedMaxFetch && savedMaxFetch > 0) {
+        setMaxFetchCount(savedMaxFetch)
+      }
+
+      await loadCachedScopeUsage()
+      setIsLoading(false)
     }
 
-    loadCachedScopeUsage()
-    setIsLoading(false)
+    initialize()
+
+    const pollInterval = setInterval(async () => {
+      await loadCachedScopeUsage()
+    }, 3000)
+
+    return () => clearInterval(pollInterval)
   }, [router])
 
   const fetchCrimeNews = async (
@@ -71,7 +80,7 @@ export default function ScopeUsagePage() {
     to?: number,
     skipCache = false,
   ): Promise<Record<string, { news: string; timestamp: number }>> => {
-    const apiKey = localStorage.getItem("factionApiKey")
+    const apiKey = await apiKeyManager.getApiKey()
     if (!apiKey) throw new Error("No API key found")
 
     if (!skipCache && to) {
@@ -142,8 +151,8 @@ export default function ScopeUsagePage() {
   }
 
   const handleFetchHistorical = async () => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    const factionId = localStorage.getItem("factionId")
+    const apiKey = await apiKeyManager.getApiKey()
+    const factionId = await db.get<string>(STORES.CACHE, "factionId")
 
     if (!apiKey || !factionId) {
       toast({
@@ -160,6 +169,8 @@ export default function ScopeUsagePage() {
     const seenIds = new Set<string>()
     let toTimestamp: number | undefined = undefined
     let lastOldestId: string | null = null
+    let requestCount = 0
+    let consecutiveEmptyBatches = 0
 
     try {
       toast({
@@ -169,8 +180,9 @@ export default function ScopeUsagePage() {
 
       console.log("[v0] Fetching latest crime news (fresh, not cached)")
       const rawNews = await fetchCrimeNews(factionId, undefined, true)
+      requestCount++
 
-      if (Object.keys(rawNews).length > 0) {
+      if (rawNews && Object.keys(rawNews).length > 0) {
         for (const [id, data] of Object.entries(rawNews)) {
           if (!seenIds.has(id)) {
             seenIds.add(id)
@@ -193,12 +205,28 @@ export default function ScopeUsagePage() {
       }
 
       while (allEntries.length < maxFetchCount && toTimestamp) {
-        console.log(`[v0] Fetching crime news with to=${toTimestamp}`)
-        const rawNews = await fetchCrimeNews(factionId, toTimestamp, false)
+        if (requestCount >= 30) {
+          toast({
+            title: "Rate Limit",
+            description: "Pausing for 60 seconds to respect API limits (30 requests/minute)...",
+          })
+          await new Promise((resolve) => setTimeout(resolve, 60000))
+          requestCount = 0
+        }
 
-        if (Object.keys(rawNews).length === 0) {
-          console.log("[v0] No more crime news to fetch")
-          break
+        console.log(`[v0] Fetching crime news with to=${toTimestamp} (${requestCount + 1}/30)`)
+        const rawNews = await fetchCrimeNews(factionId, toTimestamp, false)
+        requestCount++
+
+        if (!rawNews || Object.keys(rawNews).length === 0) {
+          consecutiveEmptyBatches++
+          console.log(`[v0] No crime news returned (empty batch ${consecutiveEmptyBatches}/3)`)
+          if (consecutiveEmptyBatches >= 3) {
+            console.log("[v0] No more crime news to fetch after 3 empty batches")
+            break
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+          continue
         }
 
         const batch: ScopeUsageEntry[] = []
@@ -213,9 +241,24 @@ export default function ScopeUsagePage() {
         }
 
         if (batch.length === 0) {
-          console.log("[v0] No new unique entries in this batch, stopping")
-          break
+          consecutiveEmptyBatches++
+          console.log(`[v0] No new unique entries in this batch (empty batch ${consecutiveEmptyBatches}/3)`)
+          if (consecutiveEmptyBatches >= 3) {
+            console.log("[v0] Stopping after 3 consecutive empty batches")
+            break
+          }
+          const timestamps = Object.values(rawNews).map((item) => item.timestamp)
+          if (timestamps.length > 0) {
+            toTimestamp = Math.min(...timestamps)
+            console.log(`[v0] Continuing with older timestamp: ${toTimestamp}`)
+          } else {
+            break
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+          continue
         }
+
+        consecutiveEmptyBatches = 0
 
         batch.sort((a, b) => b.timestamp - a.timestamp)
 
@@ -231,10 +274,12 @@ export default function ScopeUsagePage() {
 
         setFetchProgress({ current: allEntries.length, max: maxFetchCount })
 
-        toast({
-          title: "Fetching",
-          description: `Fetched ${allEntries.length}/${maxFetchCount} scope usage entries...`,
-        })
+        if (requestCount % 10 === 0) {
+          toast({
+            title: "Fetching",
+            description: `Fetched ${allEntries.length}/${maxFetchCount} scope usage entries (request ${requestCount}/30)...`,
+          })
+        }
 
         toTimestamp = oldestInBatch.timestamp
 
@@ -250,7 +295,7 @@ export default function ScopeUsagePage() {
       finalEntries.sort((a, b) => b.timestamp - a.timestamp)
 
       setScopeUsage(finalEntries)
-      localStorage.setItem("scopeUsage", JSON.stringify(finalEntries))
+      await db.set(STORES.CACHE, "scopeUsage", finalEntries)
 
       console.log(`[v0] Completed fetching ${finalEntries.length} scope usage entries`)
 
@@ -271,22 +316,17 @@ export default function ScopeUsagePage() {
     }
   }
 
-  const loadCachedScopeUsage = () => {
-    const cached = localStorage.getItem("scopeUsage")
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached)
-        setScopeUsage(parsed)
-      } catch (error) {
-        console.error("[v0] Error loading cached scope usage:", error)
-      }
+  const loadCachedScopeUsage = async () => {
+    const cached = await db.get<ScopeUsageEntry[]>(STORES.CACHE, "scopeUsage")
+    if (cached && Array.isArray(cached)) {
+      setScopeUsage(cached)
     }
   }
 
-  const handleSaveConfig = (maxFetch: number) => {
+  const handleSaveConfig = async (maxFetch: number) => {
     if (maxFetch > 0) {
       setMaxFetchCount(maxFetch)
-      localStorage.setItem("scopeMaxFetch", maxFetch.toString())
+      await db.set(STORES.SETTINGS, "scopeMaxFetch", maxFetch)
       setShowConfigModal(false)
       toast({
         title: "Settings Saved",
@@ -367,7 +407,6 @@ export default function ScopeUsagePage() {
     const totalSpawns = filteredScopeUsage.length
     const avgScope = totalSpawns > 0 ? totalScopeUsed / totalSpawns : 0
 
-    // Group by scenario
     const byScenario = filteredScopeUsage.reduce(
       (acc, entry) => {
         if (!acc[entry.scenario]) {
@@ -380,12 +419,10 @@ export default function ScopeUsagePage() {
       {} as Record<string, { count: number; totalScope: number }>,
     )
 
-    // Most spawned scenarios
     const mostSpawned = Object.entries(byScenario)
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 5)
 
-    // Group by user
     const byUser = filteredScopeUsage.reduce(
       (acc, entry) => {
         if (!acc[entry.user]) {
@@ -398,7 +435,6 @@ export default function ScopeUsagePage() {
       {} as Record<string, { count: number; totalScope: number }>,
     )
 
-    // Top scope users
     const topUsers = Object.entries(byUser)
       .sort((a, b) => b[1].totalScope - a[1].totalScope)
       .slice(0, 5)
@@ -431,8 +467,6 @@ export default function ScopeUsagePage() {
     setUserFilter("")
     setScenarioFilter("")
     setCrimeIdFilter("")
-    // Close all filter dropdowns when clearing filters
-    // The filter dropdowns are managed within ScopeUsageTable and will be reset implicitly
   }
 
   if (isLoading) {
