@@ -2,13 +2,13 @@
 
 import type React from "react"
 import { useState } from "react"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
-import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import ApiKeyBuilder from "@/components/api-key-builder"
 import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
 
 interface LoginFormProps {
   onLogin?: (apiKey: string) => void
@@ -29,7 +29,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
 
       await fetchAndCacheMembers(apiKey)
 
-      localStorage.setItem("factionApiKey", apiKey)
+      await apiKeyManager.setApiKey(apiKey)
 
       toast({
         title: "Success",
@@ -74,7 +74,9 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
       <div className="bg-card/50 border border-border rounded-lg p-4 space-y-2">
         <h3 className="text-lg font-semibold text-foreground text-center">Data Policy</h3>
         <ul className="text-sm space-y-1.5">
-          <li>• You need <span className="font-bold">Faction API</span> access</li>
+          <li>
+            • You need <span className="font-bold">Faction API</span> access
+          </li>
           <li>• Your API Key is stored in the browser</li>
           <li>• All API calls are done in the browser</li>
           <li>• Logging out will remove your key & any integrations</li>

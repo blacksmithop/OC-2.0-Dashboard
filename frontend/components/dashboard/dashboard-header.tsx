@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from 'next/navigation'
-import { MoreVertical, RefreshCw, LogOut, Info, RotateCcw, Settings } from 'lucide-react'
+import { useRouter } from "next/navigation"
+import { MoreVertical, RefreshCw, LogOut, Info, RotateCcw, Settings } from "lucide-react"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { useToast } from "@/hooks/use-toast"
 

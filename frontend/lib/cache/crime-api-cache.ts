@@ -1,3 +1,5 @@
+import { db, STORES } from "../db/indexeddb"
+
 interface CachedCrimeResponse {
   data: any
   timestamp: number
@@ -14,21 +16,19 @@ export const crimeApiCache = {
   /**
    * Get cached API response
    */
-  get(cacheKey: string): any | null {
+  async get(cacheKey: string): Promise<any | null> {
     try {
-      const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${cacheKey}`)
+      const cached = await db.get<CachedCrimeResponse>(STORES.CACHE, `${CACHE_KEY_PREFIX}${cacheKey}`)
       if (!cached) return null
-
-      const parsed: CachedCrimeResponse = JSON.parse(cached)
 
       // Check if cache is still valid
       const now = Date.now()
-      if (now - parsed.timestamp > CACHE_DURATION) {
-        localStorage.removeItem(`${CACHE_KEY_PREFIX}${cacheKey}`)
+      if (now - cached.timestamp > CACHE_DURATION) {
+        await db.delete(STORES.CACHE, `${CACHE_KEY_PREFIX}${cacheKey}`)
         return null
       }
 
-      return parsed.data
+      return cached.data
     } catch (e) {
       console.error("[v0] Failed to read from crime API cache:", e)
       return null
@@ -38,13 +38,13 @@ export const crimeApiCache = {
   /**
    * Set cached API response
    */
-  set(cacheKey: string, data: any): void {
+  async set(cacheKey: string, data: any): Promise<void> {
     try {
       const cached: CachedCrimeResponse = {
         data,
         timestamp: Date.now(),
       }
-      localStorage.setItem(`${CACHE_KEY_PREFIX}${cacheKey}`, JSON.stringify(cached))
+      await db.set(STORES.CACHE, `${CACHE_KEY_PREFIX}${cacheKey}`, cached, CACHE_DURATION)
     } catch (e) {
       console.error("[v0] Failed to write to crime API cache:", e)
     }
@@ -53,14 +53,9 @@ export const crimeApiCache = {
   /**
    * Clear all crime API caches
    */
-  clearAll(): void {
+  async clearAll(): Promise<void> {
     try {
-      const keys = Object.keys(localStorage)
-      keys.forEach((key) => {
-        if (key.startsWith(CACHE_KEY_PREFIX)) {
-          localStorage.removeItem(key)
-        }
-      })
+      await db.deleteByPrefix(STORES.CACHE, CACHE_KEY_PREFIX)
       console.log("[v0] Cleared all crime API caches")
     } catch (e) {
       console.error("[v0] Failed to clear crime API cache:", e)
@@ -99,7 +94,7 @@ export const crimeApiCache = {
     const cacheKey = this.generateCacheKey(url)
 
     if (!skipCache) {
-      const cached = this.get(cacheKey)
+      const cached = await this.get(cacheKey)
       if (cached) {
         console.log(`[v0] Cache HIT for: ${cacheKey}`)
         return cached
@@ -123,7 +118,7 @@ export const crimeApiCache = {
 
     const data = await response.json()
 
-    this.set(cacheKey, data)
+    await this.set(cacheKey, data)
     console.log(`[v0] Cached response for: ${cacheKey}`)
 
     return data

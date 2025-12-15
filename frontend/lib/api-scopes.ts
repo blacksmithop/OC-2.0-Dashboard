@@ -1,3 +1,5 @@
+import { db, STORES } from "./db/indexeddb"
+
 export interface ApiScope {
   id: string
   name: string
@@ -97,45 +99,44 @@ export function buildApiKeyUrl(selectedScopes: string[]): string {
   return `https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=TornOCApp&faction=${factionScopes}&torn=${tornScopes}`
 }
 
-export function saveSelectedScopes(scopes: string[]): void {
-  localStorage.setItem("apiScopes", JSON.stringify(scopes))
+export async function saveSelectedScopes(scopes: string[]): Promise<void> {
+  await db.set(STORES.SETTINGS, "apiScopes", scopes)
 }
 
-export function getSelectedScopes(): string[] {
+export async function getSelectedScopes(): Promise<string[]> {
   if (typeof window === "undefined") return []
-  const stored = localStorage.getItem("apiScopes")
+  const stored = await db.get<string[]>(STORES.SETTINGS, "apiScopes")
   if (!stored) {
     return API_SCOPES.filter((s) => s.required).map((s) => s.id)
   }
-  return JSON.parse(stored)
+  return stored
 }
 
-export function hasScope(scope: string): boolean {
-  const selected = getSelectedScopes()
+export async function hasScope(scope: string): Promise<boolean> {
+  const selected = await getSelectedScopes()
   return selected.includes(scope)
 }
 
-export function canReloadIndividualCrimes(): boolean {
+export async function canReloadIndividualCrimes(): Promise<boolean> {
   return hasScope("crime")
 }
 
-export function canAccessArmory(): boolean {
+export async function canAccessArmory(): Promise<boolean> {
   return hasScope("armorynews")
 }
 
-export function canAccessBalance(): boolean {
+export async function canAccessBalance(): Promise<boolean> {
   return hasScope("balance")
 }
 
-export function canAccessFunds(): boolean {
+export async function canAccessFunds(): Promise<boolean> {
   return hasScope("fundsnews")
 }
 
-// Added canAccessCrimeNews function
-export function canAccessCrimeNews(): boolean {
+export async function canAccessCrimeNews(): Promise<boolean> {
   return hasScope("crimenews")
 }
 
-export function canAccessMedical(): boolean {
+export async function canAccessMedical(): Promise<boolean> {
   return hasScope("medical")
 }

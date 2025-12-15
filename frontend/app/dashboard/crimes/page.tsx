@@ -21,6 +21,9 @@ import { CrimeDateFilter } from "@/components/crimes/crime-date-filter"
 import { getMembersNotInOC } from "@/lib/crimes/members-not-in-oc" // Import the missing function
 import { isValid } from "date-fns" // Import isValid function from date-fns
 import { Input } from "@/components/ui/input"
+import { thirdPartySettingsManager } from "@/lib/settings/third-party-manager"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
+import { db, STORES } from "@/lib/db/indexeddb"
 
 export default function CrimesPage() {
   const router = useRouter()
@@ -59,50 +62,38 @@ export default function CrimesPage() {
   const [membersNotInOC, setMembersNotInOC] = useState<Member[]>([]) // Declare the missing variable
   const [usernameFilter, setUsernameFilter] = useState("") // Added username search state
 
+  const handleDateRangeChange = (start: Date, end: Date) => {
+    setCustomDateRange({ start, end })
+  }
+
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (!apiKey) {
-      router.push("/")
-      return
+    const initializePage = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (!apiKey) {
+        router.push("/")
+        return
+      }
+
+      console.log("[v0] Initial data fetch triggered")
+      loadFromStoredData(apiKey)
+
+      loadHistoricalCrimes()
+
+      loadCPRTrackerData(apiKey)
     }
 
-    console.log("[v0] Initial data fetch triggered")
-    loadFromStoredData(apiKey)
+    initializePage()
 
-    loadHistoricalCrimes()
-
-    loadCPRTrackerData(apiKey)
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "factionHistoricalCrimes") {
-        console.log("[v0] Historical crimes updated from another tab/component")
+    const pollInterval = setInterval(async () => {
+      const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
+      if (cached && cached.length !== historicalCrimesLengthRef.current) {
+        console.log("[v0] Historical crimes count changed, reloading")
+        historicalCrimesLengthRef.current = cached.length
         loadHistoricalCrimes()
-      }
-      if (e.key === "thirdPartySettings" || e.key === "CPR_TRACKER_API_KEY") {
-        loadCPRTrackerData(apiKey)
-      }
-    }
-
-    window.addEventListener("storage", handleStorageChange)
-
-    const pollInterval = setInterval(() => {
-      const cached = localStorage.getItem("factionHistoricalCrimes")
-      if (cached) {
-        try {
-          const data = JSON.parse(cached)
-          if (data.length !== historicalCrimesLengthRef.current) {
-            console.log("[v0] Historical crimes count changed, reloading")
-            historicalCrimesLengthRef.current = data.length
-            loadHistoricalCrimes()
-          }
-        } catch (e) {
-          // Ignore parse errors
-        }
       }
     }, 3000)
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange)
       clearInterval(pollInterval)
     }
   }, [router])
@@ -121,44 +112,36 @@ export default function CrimesPage() {
   }, [searchParams])
 
   useEffect(() => {
-    if (factionId) {
-      const apiKey = localStorage.getItem("factionApiKey")
-      if (apiKey) {
-        loadCPRTrackerData(apiKey)
+    const loadFactionId = async () => {
+      if (factionId) {
+        const apiKey = await apiKeyManager.getApiKey()
+        if (apiKey) {
+          loadCPRTrackerData(apiKey)
+        }
       }
     }
+    loadFactionId()
   }, [factionId])
 
-  const loadFromStoredData = (apiKey: string) => {
+  const loadFromStoredData = async (apiKey: string) => {
     console.log("[v0] Loading from stored data")
     setIsLoading(true)
 
     try {
-      const cachedFaction = localStorage.getItem("factionBasic")
+      const cachedFaction = await db.get(STORES.CACHE, "factionBasic")
       if (cachedFaction) {
-        try {
-          const factionData = JSON.parse(cachedFaction)
-          setFactionId(factionData.basic?.id || null)
-          console.log(`[v0] Loaded faction ID: ${factionData.basic?.id}`)
-        } catch (e) {
-          console.error("[v0] Failed to parse cached faction:", e)
-        }
+        setFactionId(cachedFaction.basic?.id || null)
+        console.log(`[v0] Loaded faction ID: ${cachedFaction.basic?.id}`)
       }
 
-      // Load items from cache
-      const cachedItems = localStorage.getItem("tornItems")
+      const cachedItems = await db.get(STORES.CACHE, "tornItems")
       if (cachedItems) {
-        try {
-          const itemsData = JSON.parse(cachedItems)
-          const itemsMap = new Map<number, TornItem>()
-          Object.entries(itemsData).forEach(([id, item]) => {
-            itemsMap.set(Number.parseInt(id), item as TornItem)
-          })
-          setItems(itemsMap)
-          console.log(`[v0] Loaded ${itemsMap.size} items from cache`)
-        } catch (e) {
-          console.error("[v0] Failed to parse cached items:", e)
-        }
+        const itemsMap = new Map<number, TornItem>()
+        Object.entries(cachedItems).forEach(([id, item]) => {
+          itemsMap.set(Number.parseInt(id), item as TornItem)
+        })
+        setItems(itemsMap)
+        console.log(`[v0] Loaded ${itemsMap.size} items from cache`)
       }
 
       fetchAndCacheMembers(apiKey)
@@ -175,19 +158,13 @@ export default function CrimesPage() {
           console.error("[v0] Failed to load members:", e)
         })
 
-      // Load historical crimes
-      const cached = localStorage.getItem("factionHistoricalCrimes")
+      const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
       let loadedHistoricalCrimes: Crime[] = []
       if (cached) {
-        try {
-          loadedHistoricalCrimes = JSON.parse(cached)
-          console.log(`[v0] Loaded ${loadedHistoricalCrimes.length} historical crimes from localStorage`)
-        } catch (e) {
-          console.error("[v0] Failed to parse historical crimes:", e)
-        }
+        loadedHistoricalCrimes = cached
+        console.log(`[v0] Loaded ${loadedHistoricalCrimes.length} historical crimes from IndexedDB`)
       }
 
-      // If we have stored data, use it immediately
       if (loadedHistoricalCrimes.length > 0) {
         setCrimes(loadedHistoricalCrimes)
         console.log(`[v0] Using ${loadedHistoricalCrimes.length} stored crimes`)
@@ -198,19 +175,16 @@ export default function CrimesPage() {
           description: `Loaded ${loadedHistoricalCrimes.length} crimes from storage`,
         })
 
-        // Then fetch fresh data in the background
         setTimeout(() => {
           console.log("[v0] Background refresh started")
           fetchData(apiKey, true)
         }, 1000)
       } else {
-        // No stored data, fetch from API
         console.log("[v0] No stored data, fetching from API")
         fetchData(apiKey, false)
       }
     } catch (err) {
       console.error("[v0] Error loading from stored data:", err)
-      // Fallback to API fetch
       fetchData(apiKey, false)
     }
   }
@@ -254,15 +228,11 @@ export default function CrimesPage() {
 
       const currentCrimes = Object.values(crimesData.crimes || {})
 
-      const cached = localStorage.getItem("factionHistoricalCrimes")
+      const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
       let loadedHistoricalCrimes: Crime[] = []
       if (cached) {
-        try {
-          loadedHistoricalCrimes = JSON.parse(cached)
-          console.log(`[v0] fetchData: Loaded ${loadedHistoricalCrimes.length} historical crimes from localStorage`)
-        } catch (e) {
-          console.error("[v0] fetchData: Failed to parse historical crimes:", e)
-        }
+        loadedHistoricalCrimes = cached
+        console.log(`[v0] fetchData: Loaded ${loadedHistoricalCrimes.length} historical crimes from IndexedDB`)
       }
 
       const crimeMap = new Map<number, Crime>()
@@ -316,7 +286,7 @@ export default function CrimesPage() {
   }
 
   const handleRefresh = async () => {
-    const apiKey = localStorage.getItem("factionApiKey")
+    const apiKey = await apiKeyManager.getApiKey()
     if (apiKey) {
       console.log("[v0] Manual refresh triggered")
       setRefreshing(true)
@@ -330,7 +300,7 @@ export default function CrimesPage() {
   }
 
   const handleReset = async () => {
-    const apiKey = localStorage.getItem("factionApiKey")
+    const apiKey = await apiKeyManager.getApiKey()
     if (!apiKey) return
 
     setIsLoading(true)
@@ -362,7 +332,7 @@ export default function CrimesPage() {
   }
 
   const handleReloadCrime = async (crimeId: number): Promise<Crime | null> => {
-    const apiKey = localStorage.getItem("factionApiKey")
+    const apiKey = await apiKeyManager.getApiKey()
     if (!apiKey) return null
 
     try {
@@ -400,38 +370,27 @@ export default function CrimesPage() {
     }
   }
 
-  const loadHistoricalCrimes = () => {
-    const cached = localStorage.getItem("factionHistoricalCrimes")
+  const loadHistoricalCrimes = async () => {
+    const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
     if (cached) {
-      try {
-        const data = JSON.parse(cached)
-        setHistoricalCrimes(data)
-        historicalCrimesLengthRef.current = data.length
-        console.log(`[v0] Loaded ${data.length} historical crimes`)
-      } catch (e) {
-        console.error("[v0] Failed to parse historical crimes:", e)
-      }
+      setHistoricalCrimes(cached)
+      historicalCrimesLengthRef.current = cached.length
+      console.log(`[v0] Loaded ${cached.length} historical crimes`)
     }
   }
 
   const loadCPRTrackerData = async (apiKey: string) => {
-    const settings = localStorage.getItem("thirdPartySettings")
-    if (!settings) return
+    const settings = await thirdPartySettingsManager.getSettings()
 
-    try {
-      const parsed = JSON.parse(settings)
-      setCprTrackerEnabled(parsed.cprTracker?.enabled || false)
+    setCprTrackerEnabled(settings.cprTracker?.enabled || false)
 
-      if (parsed.cprTracker?.enabled && parsed.cprTracker?.apiKey && factionId) {
-        console.log("[v0] Loading CPR Tracker data")
-        const data = await getCPRTrackerData(parsed.cprTracker.apiKey, factionId)
-        setCprTrackerData(data)
-        if (data) {
-          console.log(`[v0] Loaded CPR data for ${Object.keys(data.members).length} members`)
-        }
+    if (settings.cprTracker?.enabled && settings.cprTracker?.apiKey && factionId) {
+      console.log("[v0] Loading CPR Tracker data")
+      const data = await getCPRTrackerData(settings.cprTracker.apiKey, factionId)
+      setCprTrackerData(data)
+      if (data) {
+        console.log(`[v0] Loaded CPR data for ${Object.keys(data.members).length} members`)
       }
-    } catch (e) {
-      console.error("[v0] Failed to load CPR Tracker settings:", e)
     }
   }
 
@@ -440,7 +399,6 @@ export default function CrimesPage() {
       ? crimes.filter((crime) => crime.slots.some((slot) => slot.user?.id === filteredMemberId))
       : crimes
 
-    // Apply username filter
     if (usernameFilter.trim()) {
       const searchLower = usernameFilter.toLowerCase()
       filtered = filtered.filter((crime) =>
@@ -513,11 +471,6 @@ export default function CrimesPage() {
       return isInRange
     })
   }, [filteredCrimes, customDateRange])
-
-  const handleDateRangeChange = (start: Date, end: Date) => {
-    console.log("[v0] Date range changed:", { start, end })
-    setCustomDateRange({ start, end })
-  }
 
   useEffect(() => {
     if (crimes.length > 0) {
@@ -654,8 +607,8 @@ export default function CrimesPage() {
           <CrimeDateFilter
             minDate={minDate}
             maxDate={maxDate}
-            initialStartDate={initialStartDate}
-            initialEndDate={initialEndDate}
+            startDate={initialStartDate}
+            endDate={initialEndDate}
             onDateRangeChange={handleDateRangeChange}
           />
 

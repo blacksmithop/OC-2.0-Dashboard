@@ -1,4 +1,6 @@
 import { crimeApiCache } from "@/lib/cache/crime-api-cache"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
+import { db, STORES } from "@/lib/db/indexeddb"
 import type { ArmoryApiResponse } from "./types"
 
 /**
@@ -11,14 +13,21 @@ export async function fetchArmoryNews(
   factionId: string,
   to?: number,
   skipCache = false,
-): Promise<Record<string, { news: string; timestamp: number }>> {
-  const apiKey = localStorage.getItem("factionApiKey")
-  if (!apiKey) throw new Error("No API key found")
+): Promise<Record<string, { news: string; timestamp: number }> | null> {
+  if (!factionId) {
+    console.error("[v0] No factionId provided to fetchArmoryNews")
+    return null
+  }
 
-  // Check cache first (unless skipping or no timestamp)
+  const apiKey = await apiKeyManager.getApiKey()
+  if (!apiKey) {
+    console.error("[v0] No API key found")
+    return null
+  }
+
   if (!skipCache && to) {
     const cacheKey = `armory_to_${to}`
-    const cachedData = crimeApiCache.get(cacheKey)
+    const cachedData = await crimeApiCache.get(cacheKey)
     if (cachedData) {
       console.log(`[v0] Armory API cache HIT for timestamp: ${to}`)
       return cachedData
@@ -56,10 +65,10 @@ export async function fetchArmoryNews(
     throw new Error(data.error.error || "API error")
   }
 
-  const armorynews = data.armorynews || {}
+  const armorynews = data.armorynews || null
 
   // Cache the response if we have a timestamp
-  if (to) {
+  if (to && armorynews) {
     const cacheKey = `armory_to_${to}`
     crimeApiCache.set(cacheKey, armorynews)
     console.log(`[v0] Cached armory response for timestamp: ${to}`)
@@ -69,41 +78,49 @@ export async function fetchArmoryNews(
 }
 
 /**
- * Loads cached armory news from localStorage
+ * Loads cached armory news from IndexedDB
  */
-export function loadCachedArmoryNews(): any[] {
-  const cached = localStorage.getItem("armoryNews")
-  if (cached) {
-    try {
-      return JSON.parse(cached)
-    } catch (error) {
-      console.error("[v0] Error loading cached armory news:", error)
+export async function loadCachedArmoryNews(): Promise<any[]> {
+  try {
+    const cached = await db.get<any[]>(STORES.CACHE, "armoryNews")
+    if (cached) {
+      return cached
     }
+  } catch (error) {
+    console.error("[v0] Error loading cached armory news:", error)
   }
   return []
 }
 
 /**
- * Saves armory news to localStorage cache
+ * Saves armory news to IndexedDB cache
  */
-export function saveCachedArmoryNews(news: any[]): void {
-  localStorage.setItem("armoryNews", JSON.stringify(news))
+export async function saveCachedArmoryNews(news: any[]): Promise<void> {
+  try {
+    await db.set(STORES.CACHE, "armoryNews", news)
+  } catch (error) {
+    console.error("[v0] Error saving armory news to cache:", error)
+  }
 }
 
 /**
  * Clears all armory-related cache data
  */
-export function clearArmoryCache(): void {
-  localStorage.removeItem("armoryNews")
-  localStorage.removeItem("armoryMaxFetch")
+export async function clearArmoryCache(): Promise<void> {
+  try {
+    await db.delete(STORES.CACHE, "armoryNews")
+    await db.delete(STORES.CACHE, "armoryMaxFetch")
 
-  // Clear API cache entries that start with "armory_"
-  const cacheKeys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i) || "")
-  for (const key of cacheKeys) {
-    if (key.startsWith("crime_api_cache_") && key.includes("armory_to_")) {
-      localStorage.removeItem(key)
+    // Clear API cache entries that start with "armory_"
+    const allKeys = await db.getAllKeys(STORES.CACHE)
+    for (const key of allKeys) {
+      if (typeof key === "string" && key.startsWith("armory_to_")) {
+        await db.delete(STORES.CACHE, key)
+      }
     }
-  }
 
-  console.log("[v0] Cleared all armory cache data including API cache")
+    console.log("[v0] Cleared all armory cache data from IndexedDB")
+  } catch (error) {
+    console.error("[v0] Error clearing armory cache:", error)
+  }
 }

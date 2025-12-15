@@ -4,99 +4,32 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-
-interface ThirdPartySettings {
-  tornProbability: boolean
-  crimesHub: boolean
-  ffScouter: {
-    enabled: boolean
-    apiKey: string
-  }
-  cprTracker: {
-    enabled: boolean
-    apiKey: string
-  }
-  yata: {
-    enabled: boolean
-  }
-  discord: {
-    enabled: boolean
-    webhookUrl: string
-  }
-}
+import {
+  thirdPartySettingsManager,
+  defaultThirdPartySettings,
+  type ThirdPartySettings,
+} from "@/lib/settings/third-party-manager"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
 
 export default function SettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const defaultSettings: ThirdPartySettings = {
-    tornProbability: true,
-    crimesHub: true,
-    ffScouter: {
-      enabled: false,
-      apiKey: "",
-    },
-    cprTracker: {
-      enabled: false,
-      apiKey: "",
-    },
-    yata: {
-      enabled: false,
-    },
-    discord: {
-      enabled: false,
-      webhookUrl: "",
-    },
-  }
-
-  const [settings, setSettings] = useState<ThirdPartySettings>(defaultSettings)
+  const [settings, setSettings] = useState<ThirdPartySettings>(defaultThirdPartySettings)
   const [testingWebhook, setTestingWebhook] = useState(false)
 
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (!apiKey) {
-      router.push("/")
-      return
-    }
-
-    const savedSettings = localStorage.getItem("thirdPartySettings")
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings)
-        setSettings({
-          ...defaultSettings,
-          ...parsed,
-          ffScouter: { ...defaultSettings.ffScouter, ...(parsed.ffScouter || {}) },
-          cprTracker: { ...defaultSettings.cprTracker, ...(parsed.cprTracker || {}) },
-          yata: { ...defaultSettings.yata, ...(parsed.yata || {}) },
-          discord: { ...defaultSettings.discord, ...(parsed.discord || {}) },
-        })
-      } catch (err) {
-        console.error("Error loading settings:", err)
+    const loadSettings = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (!apiKey) {
+        router.push("/")
+        return
       }
+
+      const savedSettings = await thirdPartySettingsManager.getSettings()
+      setSettings(savedSettings)
     }
 
-    const ffScouterKey = localStorage.getItem("FFSCOUTER_API_KEY")
-    const cprTrackerKey = localStorage.getItem("CPR_TRACKER_API_KEY")
-
-    if (ffScouterKey) {
-      setSettings((prev) => ({
-        ...prev,
-        ffScouter: {
-          enabled: prev.ffScouter.enabled,
-          apiKey: ffScouterKey || prev.ffScouter.apiKey,
-        },
-      }))
-    }
-
-    if (cprTrackerKey) {
-      setSettings((prev) => ({
-        ...prev,
-        cprTracker: {
-          enabled: prev.cprTracker.enabled,
-          apiKey: cprTrackerKey || prev.cprTracker.apiKey,
-        },
-      }))
-    }
+    loadSettings()
   }, [router])
 
   const handleTestWebhook = async () => {
@@ -138,25 +71,21 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSave = () => {
-    localStorage.setItem("thirdPartySettings", JSON.stringify(settings))
+  const handleSave = async () => {
+    try {
+      await thirdPartySettingsManager.saveSettings(settings)
 
-    if (settings.ffScouter.enabled && settings.ffScouter.apiKey) {
-      localStorage.setItem("FFSCOUTER_API_KEY", settings.ffScouter.apiKey)
-    } else {
-      localStorage.removeItem("FFSCOUTER_API_KEY")
+      toast({
+        title: "Success",
+        description: "Settings saved successfully",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save settings",
+        variant: "destructive",
+      })
     }
-
-    if (settings.cprTracker.enabled && settings.cprTracker.apiKey) {
-      localStorage.setItem("CPR_TRACKER_API_KEY", settings.cprTracker.apiKey)
-    } else {
-      localStorage.removeItem("CPR_TRACKER_API_KEY")
-    }
-
-    toast({
-      title: "Success",
-      description: "Settings saved successfully",
-    })
   }
 
   return (

@@ -1,26 +1,29 @@
-export function handleFullLogout() {
-  // Clear API key
-  localStorage.removeItem("factionApiKey")
+import { db, STORES } from "./db/indexeddb"
+import { apiKeyManager } from "./auth/api-key-manager"
+import { thirdPartySettingsManager } from "./settings/third-party-manager"
 
-  // Clear API scope selections
-  localStorage.removeItem("apiScopes")
+export async function handleFullLogout() {
+  console.log("[v0] Starting logout process...")
 
-  // Clear all cache data
-  localStorage.removeItem("factionHistoricalCrimes")
-  localStorage.removeItem("lastHistoricalFetch")
-  localStorage.removeItem("factionCrimes")
-  localStorage.removeItem("factionMembers")
-  localStorage.removeItem("itemsCache")
-  localStorage.removeItem("itemsCacheExpiry")
-  localStorage.removeItem("armoryLogs")
+  await apiKeyManager.removeApiKey()
+  await thirdPartySettingsManager.clearSettings()
 
-  // Clear crime API cache
+  await db.clear(STORES.CACHE)
+  await db.clear(STORES.SETTINGS)
+  await db.clear(STORES.API_KEYS)
+
   const keysToRemove: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)
-    if (key?.startsWith("crime_api_cache_")) {
+    if (key) {
       keysToRemove.push(key)
     }
   }
   keysToRemove.forEach((key) => localStorage.removeItem(key))
+
+  console.log("[v0] All data cleared on logout")
+
+  if (typeof window !== "undefined") {
+    window.location.href = "/"
+  }
 }

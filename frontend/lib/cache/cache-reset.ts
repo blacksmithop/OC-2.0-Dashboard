@@ -1,7 +1,9 @@
+import { db, STORES } from "../db/indexeddb"
+
 /**
- * Clears all cached faction data from localStorage
+ * Clears all cached faction data from IndexedDB
  */
-export function clearAllCache() {
+export async function clearAllCache() {
   const itemsToClear = [
     // Historical crimes and fetch tracking
     "factionHistoricalCrimes",
@@ -11,6 +13,8 @@ export function clearAllCache() {
     "factionItemsCache",
     "factionItemsTimestamp",
     "tornItems",
+    "tornItemsCache",
+    "tornItemsCacheExpiry",
 
     // Armory caches
     "factionArmoryLogs",
@@ -18,16 +22,13 @@ export function clearAllCache() {
     "armoryNews",
     "armoryMaxFetch",
 
-    // API caches
-    "crimeApiCache",
-
     // Balance cache
     "factionBalance",
     "factionBalanceTimestamp",
 
     // Members cache
     "factionMembersCache",
-    "factionMembersTimestamp",
+    "factionMembersCacheExpiry",
 
     // Faction basic info
     "factionBasicCache",
@@ -52,28 +53,16 @@ export function clearAllCache() {
     // FFScouter cache
     "ffscouter_stats",
     "ffscouter_stats_timestamp",
-
-    // API scopes
-    "apiScopes",
   ]
 
-  itemsToClear.forEach((key) => {
-    localStorage.removeItem(key)
-  })
-
-  try {
-    const keys = Object.keys(localStorage)
-    keys.forEach((key) => {
-      if (key.startsWith("crime_api_cache_")) {
-        localStorage.removeItem(key)
-      }
-      if (key.startsWith("armory_")) {
-        localStorage.removeItem(key)
-      }
-    })
-  } catch (e) {
-    console.error("[v0] Error clearing dynamic cache keys:", e)
+  // Delete specific cache keys
+  for (const key of itemsToClear) {
+    await db.delete(STORES.CACHE, key)
   }
 
-  console.log("[v0] All cache cleared including dynamic cache entries")
+  // Clear all crime API cache entries (prefix-based)
+  await db.deleteByPrefix(STORES.CACHE, "crime_api_cache_")
+  await db.deleteByPrefix(STORES.CACHE, "armory_")
+
+  console.log("[v0] All cache cleared from IndexedDB including dynamic cache entries")
 }

@@ -4,8 +4,10 @@ export interface Member {
   level: number
   status: {
     description: string
+    details: string | null
     state: string
     color: string
+    until: number | null
   }
   position: string
   last_action: {

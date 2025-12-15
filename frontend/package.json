@@ -4,10 +4,10 @@
   "private": true,
   "homepage": "https://oc.tornrevive.page/",
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint ."
+    "dev": "next dev",
+    "lint": "eslint .",
+    "start": "next start"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -58,8 +58,8 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "3.25.76",
-    "victory": "37.3.6"
+    "victory": "37.3.6",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",

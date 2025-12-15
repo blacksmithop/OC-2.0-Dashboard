@@ -8,15 +8,16 @@ export interface FactionBalance {
   }>
 }
 
+import { db, STORES } from "../db/indexeddb"
+
 const BALANCE_CACHE_KEY = "factionBalance"
 const BALANCE_CACHE_TIMESTAMP_KEY = "factionBalanceTimestamp"
 const CACHE_DURATION_MS = 5 * 60 * 1000 // 5 minutes
 
 export async function fetchAndCacheBalance(apiKey: string): Promise<FactionBalance | null> {
   try {
-    // Check cache first
-    const cachedData = localStorage.getItem(BALANCE_CACHE_KEY)
-    const cachedTimestamp = localStorage.getItem(BALANCE_CACHE_TIMESTAMP_KEY)
+    const cachedData = await db.get<FactionBalance>(STORES.CACHE, BALANCE_CACHE_KEY)
+    const cachedTimestamp = await db.get<string>(STORES.CACHE, BALANCE_CACHE_TIMESTAMP_KEY)
 
     if (cachedData && cachedTimestamp) {
       const timestamp = Number.parseInt(cachedTimestamp, 10)
@@ -25,7 +26,7 @@ export async function fetchAndCacheBalance(apiKey: string): Promise<FactionBalan
       // If cache is still valid (less than 5 minutes old), return it
       if (age < CACHE_DURATION_MS) {
         console.log(`[v0] Using cached balance data (age: ${Math.round(age / 1000)}s)`)
-        return JSON.parse(cachedData)
+        return cachedData
       }
     }
 
@@ -40,7 +41,7 @@ export async function fetchAndCacheBalance(apiKey: string): Promise<FactionBalan
       // Return cached data if available, even if expired
       if (cachedData) {
         console.log("[v0] Falling back to cached balance data")
-        return JSON.parse(cachedData)
+        return cachedData
       }
       return null
     }
@@ -53,9 +54,8 @@ export async function fetchAndCacheBalance(apiKey: string): Promise<FactionBalan
         members: balanceData.balance.members || [],
       }
 
-      // Cache the data
-      localStorage.setItem(BALANCE_CACHE_KEY, JSON.stringify(balanceInfo))
-      localStorage.setItem(BALANCE_CACHE_TIMESTAMP_KEY, Date.now().toString())
+      await db.set(STORES.CACHE, BALANCE_CACHE_KEY, balanceInfo, CACHE_DURATION_MS)
+      await db.set(STORES.CACHE, BALANCE_CACHE_TIMESTAMP_KEY, Date.now().toString())
       console.log("[v0] Cached fresh balance data")
 
       return balanceInfo
@@ -65,17 +65,17 @@ export async function fetchAndCacheBalance(apiKey: string): Promise<FactionBalan
   } catch (error) {
     console.error("[v0] Error fetching balance:", error)
     // Return cached data if available
-    const cachedData = localStorage.getItem(BALANCE_CACHE_KEY)
+    const cachedData = await db.get<FactionBalance>(STORES.CACHE, BALANCE_CACHE_KEY)
     if (cachedData) {
       console.log("[v0] Falling back to cached balance data after error")
-      return JSON.parse(cachedData)
+      return cachedData
     }
     return null
   }
 }
 
-export function clearBalanceCache() {
-  localStorage.removeItem(BALANCE_CACHE_KEY)
-  localStorage.removeItem(BALANCE_CACHE_TIMESTAMP_KEY)
+export async function clearBalanceCache() {
+  await db.delete(STORES.CACHE, BALANCE_CACHE_KEY)
+  await db.delete(STORES.CACHE, BALANCE_CACHE_TIMESTAMP_KEY)
   console.log("[v0] Balance cache cleared")
 }

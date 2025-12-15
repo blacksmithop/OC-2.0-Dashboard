@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast"
 import { fetchAndCacheItems } from "@/lib/cache/items-cache"
 import type { TornItem } from "@/lib/cache/items-cache"
 import { fetchAndCacheMembers } from "@/lib/cache/members-cache"
+import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 import CrimeSummary from "@/components/crimes/crime-summary"
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
@@ -15,6 +16,8 @@ import { canAccessArmory, canAccessFunds, canAccessMedical } from "@/lib/api-sco
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
 import { DashboardFooter } from "@/components/dashboard/dashboard-footer"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
+import { db, STORES } from "@/lib/db/indexeddb"
 
 interface Crime {
   id: number
@@ -52,37 +55,43 @@ export default function Dashboard() {
   }, [crimes, historicalCrimes])
 
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (!apiKey) {
-      router.push("/")
-      return
-    }
-
-    setHasArmoryScope(canAccessArmory())
-    setHasFundsScope(canAccessFunds())
-    setHasMedicalScope(canAccessMedical())
-
-    const cached = localStorage.getItem("factionHistoricalCrimes")
-    if (cached) {
-      try {
-        const parsedCrimes = JSON.parse(cached)
-        setHistoricalCrimes(parsedCrimes)
-        setHistoricalFetchComplete(true)
-      } catch (err) {
-        console.error("[v0] Error loading cached crimes:", err)
+    const initializeDashboard = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (!apiKey) {
+        router.push("/")
+        return
       }
+
+      setHasArmoryScope(canAccessArmory())
+      setHasFundsScope(canAccessFunds())
+      setHasMedicalScope(canAccessMedical())
+
+      const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
+      if (cached) {
+        try {
+          setHistoricalCrimes(cached)
+          setHistoricalFetchComplete(true)
+          console.log(`[v0] Loaded ${cached.length} historical crimes from IndexedDB`)
+        } catch (err) {
+          console.error("[v0] Error loading cached crimes:", err)
+        }
+      }
+
+      fetchData(apiKey)
+      setTimeout(() => {
+        fetchHistoricalCrimes(apiKey)
+      }, 1000)
     }
 
-    fetchData(apiKey)
-    setTimeout(() => {
-      fetchHistoricalCrimes(apiKey)
-    }, 1000)
+    initializeDashboard()
   }, [router])
 
   const fetchData = async (apiKey: string) => {
     setIsLoading(true)
 
     try {
+      await fetchAndCacheFactionBasic(apiKey)
+
       const itemsData = await fetchAndCacheItems(apiKey)
       setItems(itemsData)
 
@@ -126,11 +135,11 @@ export default function Dashboard() {
   }
 
   const fetchHistoricalCrimes = async (apiKey: string) => {
-    const cached = localStorage.getItem("factionHistoricalCrimes")
-    const lastFetch = localStorage.getItem("lastHistoricalFetch")
+    const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
+    const lastFetch = await db.get<number>(STORES.CACHE, "lastHistoricalFetch")
 
     if (cached && lastFetch) {
-      const timeSinceLastFetch = Date.now() - Number.parseInt(lastFetch)
+      const timeSinceLastFetch = Date.now() - lastFetch
       if (timeSinceLastFetch < 3600000) {
         console.log("[v0] Using cached historical crimes")
         setHistoricalFetchComplete(true)
@@ -144,7 +153,8 @@ export default function Dashboard() {
     let oldestTimestamp: number | null = null
     let lastOldestCrimeId: number | null = null
     let requestCount = 0
-    const REQUEST_DELAY = 2500
+    const REQUESTS_PER_BATCH = 30
+    const BATCH_SLEEP_TIME = 60000 // 1 minute
 
     try {
       console.log("[v0] Fetching latest crimes (fresh, not cached)")
@@ -170,13 +180,28 @@ export default function Dashboard() {
       }
 
       setHistoricalProgress({ current: allCrimes.length, total: allCrimes.length })
+      requestCount++
 
-      while (hasMoreData && oldestTimestamp && requestCount < 100) {
-        await new Promise((resolve) => setTimeout(resolve, REQUEST_DELAY))
-        requestCount++
+      while (hasMoreData && oldestTimestamp) {
+        if (requestCount > 0 && requestCount % REQUESTS_PER_BATCH === 0) {
+          console.log(`[v0] Rate limit: Sleeping for 1 minute after ${requestCount} requests`)
+          toast({
+            title: "Rate Limit Pause",
+            description: `Pausing for 1 minute after ${requestCount} requests to respect API limits`,
+          })
+          await new Promise((resolve) => setTimeout(resolve, BATCH_SLEEP_TIME))
+        }
 
         const historicalUrl = `https://api.torn.com/v2/faction/crimes?cat=completed&sort=DESC&to=${oldestTimestamp}&striptags=true&comment=oc_dashboard_crimes`
         const data = await crimeApiCache.fetchWithCache(historicalUrl, apiKey, false)
+        requestCount++
+
+        if (requestCount % 10 === 0) {
+          toast({
+            title: "Fetching Historical Data",
+            description: `Fetched ${allCrimes.length} crimes (Request ${requestCount})`,
+          })
+        }
 
         if (data.crimes && Object.keys(data.crimes).length > 0) {
           const crimesArray = Object.values(data.crimes)
@@ -202,12 +227,23 @@ export default function Dashboard() {
       }
 
       if (allCrimes.length > 0) {
-        localStorage.setItem("factionHistoricalCrimes", JSON.stringify(allCrimes))
-        localStorage.setItem("lastHistoricalFetch", Date.now().toString())
+        // Fixed db.put to db.set for IndexedDB API
+        await db.set(STORES.CACHE, "factionHistoricalCrimes", allCrimes)
+        await db.set(STORES.CACHE, "lastHistoricalFetch", Date.now())
         console.log(`[v0] Fetched ${allCrimes.length} historical crimes`)
+
+        toast({
+          title: "Success",
+          description: `Fetched ${allCrimes.length} historical crimes`,
+        })
       }
     } catch (err) {
       console.error("[v0] Error fetching historical crimes:", err)
+      toast({
+        title: "Error",
+        description: "Failed to fetch historical crimes",
+        variant: "destructive",
+      })
     } finally {
       setIsFetchingHistorical(false)
       setHistoricalFetchComplete(true)
@@ -215,7 +251,7 @@ export default function Dashboard() {
   }
 
   const handleReset = async () => {
-    const apiKey = localStorage.getItem("factionApiKey")
+    const apiKey = await apiKeyManager.getApiKey()
     if (apiKey) {
       clearAllCache()
       setHistoricalCrimes([])

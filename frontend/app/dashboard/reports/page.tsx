@@ -16,6 +16,8 @@ import { formatCurrency } from "@/lib/crimes/formatters"
 import { getDifficultyColor } from "@/lib/crimes/colors"
 import { CRIME_METADATA } from "@/lib/crimes/metadata"
 import CrimeSuccessCharts from "@/components/crimes/crime-success-charts"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
+import { db, STORES } from "@/lib/db/indexeddb"
 
 export default function ReportsPage() {
   const router = useRouter()
@@ -40,6 +42,8 @@ export default function ReportsPage() {
 
   const WEEK_IN_SECONDS = 7 * 24 * 60 * 60
   const REQUEST_DELAY = 2000
+  const REQUESTS_PER_BATCH = 30
+  const BATCH_SLEEP_TIME = 60000 // 1 minute
 
   const allCrimes = useMemo(() => {
     const crimeMap = new Map<number, Crime>()
@@ -57,13 +61,13 @@ export default function ReportsPage() {
   }, [historicalCrimes, currentCrimes, dateFilter])
 
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (!apiKey) {
-      router.push("/")
-      return
-    }
-
     const loadData = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (!apiKey) {
+        router.push("/")
+        return
+      }
+
       try {
         const crimesRes = await fetch(
           "https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes",
@@ -79,59 +83,36 @@ export default function ReportsPage() {
           }
         }
       } catch (e) {
-        console.error("Failed to fetch current crimes:", e)
+        console.error("[v0] Failed to fetch current crimes:", e)
       }
 
-      const cached = localStorage.getItem("factionHistoricalCrimes")
+      const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
       if (cached) {
-        try {
-          const data = JSON.parse(cached)
-          setHistoricalCrimes(data)
-          console.log(`[v0] Loaded ${data.length} historical crimes from cache`)
-        } catch (e) {
-          console.error("Failed to parse cached crimes:", e)
-        }
+        setHistoricalCrimes(cached)
+        console.log(`[v0] Loaded ${cached.length} historical crimes from IndexedDB (shared cache)`)
+
+        toast({
+          title: "Data Loaded",
+          description: `Loaded ${cached.length} historical crimes from cache`,
+        })
       }
+
+      fetchAndCacheItems(apiKey).then((itemsData) => {
+        setItems(itemsData)
+      })
     }
 
     loadData()
 
-    fetchAndCacheItems(apiKey).then((itemsData) => {
-      setItems(itemsData)
-    })
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "factionHistoricalCrimes") {
-        const cached = localStorage.getItem("factionHistoricalCrimes")
-        if (cached) {
-          try {
-            const data = JSON.parse(cached)
-            setHistoricalCrimes(data)
-          } catch (e) {
-            console.error("Failed to parse updated historical crimes:", e)
-          }
-        }
-      }
-    }
-
-    window.addEventListener("storage", handleStorageChange)
-
-    const pollInterval = setInterval(() => {
-      const cached = localStorage.getItem("factionHistoricalCrimes")
-      if (cached) {
-        try {
-          const data = JSON.parse(cached)
-          if (data.length !== historicalCrimes.length) {
-            setHistoricalCrimes(data)
-          }
-        } catch (e) {
-          // Ignore
-        }
+    const pollInterval = setInterval(async () => {
+      const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
+      if (cached && cached.length !== historicalCrimes.length) {
+        setHistoricalCrimes(cached)
+        console.log(`[v0] Updated to ${cached.length} historical crimes from IndexedDB`)
       }
     }, 3000)
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange)
       clearInterval(pollInterval)
     }
   }, [router])
@@ -300,7 +281,7 @@ export default function ReportsPage() {
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
   const fetchCompletedCrimes = async () => {
-    const apiKey = localStorage.getItem("factionApiKey")
+    const apiKey = await apiKeyManager.getApiKey()
     if (!apiKey) return
 
     setIsLoading(true)
@@ -310,19 +291,26 @@ export default function ReportsPage() {
     try {
       const allCrimes: Crime[] = []
       let hasMoreData = true
-      let weekCount = 0
+      const weekCount = 0
       let oldestTimestamp: number | null = null
       let lastOldestCrimeId: number | null = null
+      let requestCount = 0
 
       console.log("[v0] Fetching latest crimes (fresh, not cached)")
       const firstUrl = `https://api.torn.com/v2/faction/crimes?cat=completed&sort=DESC&striptags=true&comment=oc_dashboard_crimes`
-      const firstData: CrimesResponse = await crimeApiCache.fetchWithCache(firstUrl, apiKey, true)
+      const firstData = await crimeApiCache.fetchWithCache(firstUrl, apiKey, true)
 
       if (firstData.crimes) {
         const crimesArray = Object.values(firstData.crimes)
         allCrimes.push(...crimesArray)
-        setCrimes(allCrimes)
+        setHistoricalCrimes([...allCrimes])
+        setCrimes([...allCrimes])
         setTotalCrimes(allCrimes.length)
+
+        toast({
+          title: "Fetching",
+          description: `Fetched ${allCrimes.length} crimes`,
+        })
 
         if (crimesArray.length > 0) {
           const oldestCrime = crimesArray.reduce((oldest, crime) =>
@@ -337,16 +325,30 @@ export default function ReportsPage() {
         hasMoreData = false
       }
 
-      while (hasMoreData && !isPaused && oldestTimestamp) {
-        weekCount++
-        setCurrentWeek(weekCount)
+      requestCount++
 
-        await delay(REQUEST_DELAY)
+      while (hasMoreData && oldestTimestamp) {
+        if (requestCount > 0 && requestCount % REQUESTS_PER_BATCH === 0) {
+          console.log(`[v0] Rate limit: Sleeping for 1 minute after ${requestCount} requests`)
+          toast({
+            title: "Rate Limit Pause",
+            description: `Pausing for 1 minute after ${requestCount} requests to respect API limits`,
+          })
+          await new Promise((resolve) => setTimeout(resolve, BATCH_SLEEP_TIME))
+        }
 
         const historicalUrl = `https://api.torn.com/v2/faction/crimes?cat=completed&sort=DESC&to=${oldestTimestamp}&striptags=true&comment=oc_dashboard_crimes`
-        const data: CrimesResponse = await crimeApiCache.fetchWithCache(historicalUrl, apiKey, false)
+        const data = await crimeApiCache.fetchWithCache(historicalUrl, apiKey, false)
+        requestCount++
 
-        if (data && data.crimes && Object.keys(data.crimes).length > 0) {
+        if (requestCount % 10 === 0) {
+          toast({
+            title: "Fetching Historical Data",
+            description: `Fetched ${allCrimes.length} crimes (Request ${requestCount})`,
+          })
+        }
+
+        if (data.crimes && Object.keys(data.crimes).length > 0) {
           const crimesArray = Object.values(data.crimes)
 
           const newOldestCrime = crimesArray.reduce((oldest, crime) =>
@@ -359,7 +361,8 @@ export default function ReportsPage() {
           }
 
           allCrimes.push(...crimesArray)
-          setCrimes(allCrimes)
+          setHistoricalCrimes([...allCrimes])
+          setCrimes([...allCrimes])
           setTotalCrimes(allCrimes.length)
 
           oldestTimestamp = newOldestCrime.executed_at
@@ -367,32 +370,24 @@ export default function ReportsPage() {
         } else {
           hasMoreData = false
         }
-
-        if (weekCount >= 52) {
-          hasMoreData = false
-          toast({
-            title: "Success",
-            description: "Reached 1 year limit. Stopping fetch.",
-          })
-        }
       }
 
       if (allCrimes.length > 0) {
-        localStorage.setItem("factionHistoricalCrimes", JSON.stringify(allCrimes))
-        localStorage.setItem("lastHistoricalFetch", Date.now().toString())
-      }
+        // Fixed db.put to db.set for IndexedDB API
+        await db.set(STORES.CACHE, "factionHistoricalCrimes", allCrimes)
+        await db.set(STORES.CACHE, "lastHistoricalFetch", Date.now())
+        console.log(`[v0] Fetched and stored ${allCrimes.length} historical crimes`)
 
-      if (!isPaused) {
         toast({
           title: "Success",
-          description: `Successfully fetched ${allCrimes.length} crimes over ${weekCount} weeks`,
+          description: `Fetched ${allCrimes.length} historical crimes`,
         })
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to fetch crimes"
+      console.error("[v0] Error fetching historical crimes:", err)
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Failed to fetch historical crimes",
         variant: "destructive",
       })
     } finally {
@@ -495,6 +490,11 @@ export default function ReportsPage() {
 
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-5xl mx-auto space-y-6">
+          {crimes.length > 0 && (
+            <>
+              <CrimeSuccessCharts crimes={crimes} />
+            </>
+          )}
 
           <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -520,7 +520,8 @@ export default function ReportsPage() {
 
             <p className="text-sm text-muted-foreground">
               This will fetch all completed crimes by cycling back in time using the oldest timestamp. The process may
-              take several minutes depending on your faction's history. Requests are spaced 2 seconds apart.
+              take several minutes depending on your faction's history. Requests are limited to 30 per minute with a
+              1-minute pause between batches to respect API rate limits.
             </p>
             {isLoading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -741,7 +742,7 @@ export default function ReportsPage() {
                             </div>
 
                             <div className="bg-background/50 rounded-lg p-4 border border-border">
-                              <h5 className="text-sm font-bold text-primary mb-3">Required Roles & Items</h5>
+                              <div className="text-xs text-muted-foreground mb-1">Required Roles & Items</div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {metadata.slots.map((slot) => (
                                   <div

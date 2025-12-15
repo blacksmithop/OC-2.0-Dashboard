@@ -13,6 +13,7 @@ interface FFScouterCache {
 
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 let cache: FFScouterCache | null = null
+import { thirdPartySettingsManager } from "@/lib/settings/third-party-manager"
 
 export async function fetchFFScouterStats(memberIds: number[]): Promise<Map<number, FFScouterResult>> {
   // Check cache first
@@ -20,14 +21,10 @@ export async function fetchFFScouterStats(memberIds: number[]): Promise<Map<numb
     return cache.data
   }
 
-  // Check if FF Scouter is enabled in settings
-  const settings = localStorage.getItem('thirdPartySettings')
-  if (!settings) return new Map()
+  const settings = await thirdPartySettingsManager.getSettings()
+  if (!settings.ffScouter?.enabled) return new Map()
 
-  const parsedSettings = JSON.parse(settings)
-  if (!parsedSettings.ffScouter?.enabled) return new Map()
-
-  const apiKey = localStorage.getItem('FFSCOUTER_API_KEY')
+  const apiKey = await thirdPartySettingsManager.getFFScouterApiKey()
   if (!apiKey) return new Map()
 
   const results = new Map<number, FFScouterResult>()
@@ -40,12 +37,12 @@ export async function fetchFFScouterStats(memberIds: number[]): Promise<Map<numb
 
   try {
     for (const chunk of chunks) {
-      const targetsParam = chunk.join(',')
+      const targetsParam = chunk.join(",")
       const url = `https://ffscouter.com/api/v1/get-stats?key=${apiKey}&targets=${targetsParam}`
 
       const response = await fetch(url)
       if (!response.ok) {
-        console.error('[v0] FF Scouter API error:', response.status)
+        console.error("[v0] FF Scouter API error:", response.status)
         continue
       }
 
@@ -63,7 +60,7 @@ export async function fetchFFScouterStats(memberIds: number[]): Promise<Map<numb
 
     return results
   } catch (error) {
-    console.error('[v0] Failed to fetch FF Scouter data:', error)
+    console.error("[v0] Failed to fetch FF Scouter data:", error)
     return new Map()
   }
 }

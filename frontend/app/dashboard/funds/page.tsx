@@ -3,18 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import {
-  LogOut,
-  MoreVertical,
-  ArrowLeft,
-  Info,
-  RotateCcw,
-  Package,
-  TrendingUp,
-  TrendingDown,
-  X,
-  Settings,
-} from "lucide-react"
+import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw, Package, TrendingUp, TrendingDown, X } from "lucide-react"
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
 import { clearAllCache } from "@/lib/cache/cache-reset"
@@ -22,6 +11,10 @@ import { handleFullLogout } from "@/lib/logout-handler"
 import { parseFundsNews, type FundsNewsEntry } from "@/lib/funds-parser"
 import { WithdrawUrlGenerator } from "@/components/withdraw-url-generator"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+import { db, STORES } from "@/lib/db/indexeddb"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
+import FundsStats from "@/components/funds/funds-stats"
+import FundsConfigModal from "@/components/funds/funds-config-modal"
 
 export default function FundsPage() {
   const router = useRouter()
@@ -36,50 +29,56 @@ export default function FundsPage() {
   const [tempMaxItems, setTempMaxItems] = useState(1000)
   const [progress, setProgress] = useState({ current: 0, total: 0 })
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set())
+  const [showConfigModal, setShowConfigModal] = useState(false)
 
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (!apiKey) {
-      router.push("/")
-      return
+    const initializePage = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (!apiKey) {
+        router.push("/")
+        return
+      }
+
+      const savedMaxItems = await db.get<number>(STORES.SETTINGS, "fundsMaxItems")
+      if (savedMaxItems) {
+        setMaxItems(savedMaxItems)
+        setTempMaxItems(savedMaxItems)
+      }
+
+      await loadCachedFunds()
+      setIsLoading(false)
     }
 
-    const savedMaxItems = localStorage.getItem("fundsMaxItems")
-    if (savedMaxItems) {
-      const max = Number.parseInt(savedMaxItems)
-      setMaxItems(max)
-      setTempMaxItems(max)
-    }
-
-    loadCachedFunds()
-    setIsLoading(false)
+    initializePage()
   }, [router])
 
-  const loadCachedFunds = () => {
-    const cached = localStorage.getItem("factionFundsNews")
+  const loadCachedFunds = async () => {
+    const cached = await db.get<FundsNewsEntry[]>(STORES.CACHE, "factionFundsNews")
     if (cached) {
-      try {
-        const data = JSON.parse(cached)
-        setFunds(data)
-        console.log(`[v0] Loaded ${data.length} cached funds entries`)
-      } catch (e) {
-        console.error("[v0] Failed to parse cached funds:", e)
-      }
+      setFunds(cached)
+      console.log(`[v0] Loaded ${cached.length} cached funds entries`)
     }
   }
 
   const handleBackfill = async () => {
-    const apiKey = localStorage.getItem("factionApiKey")
+    const apiKey = await apiKeyManager.getApiKey()
     if (!apiKey) return
 
     setIsFetching(true)
     const allFunds: FundsNewsEntry[] = []
     const seenUuids = new Set<string>()
     let toTimestamp: number | null = Math.floor(Date.now() / 1000)
+    let requestNumber = 0
 
     try {
+      toast({
+        title: "Fetching",
+        description: "Starting funds news fetch...",
+      })
+
       while (allFunds.length < maxItems) {
         await new Promise((resolve) => setTimeout(resolve, 2500))
+        requestNumber++
 
         const url = toTimestamp
           ? `https://api.torn.com/faction/?selections=fundsnews&to=${toTimestamp}&comment=oc_dashboard_fundsnews`
@@ -126,6 +125,16 @@ export default function FundsPage() {
         setFunds([...allFunds])
         setProgress({ current: allFunds.length, total: maxItems })
 
+        toast({
+          title: "Fetching",
+          description: (
+            <span>
+              <span className="text-cyan-500 font-mono mr-2">#{requestNumber}</span>
+              Fetched {allFunds.length}/{maxItems}
+            </span>
+          ),
+        })
+
         toTimestamp = batch[batch.length - 1].timestamp
 
         if (allFunds.length >= maxItems) {
@@ -136,7 +145,7 @@ export default function FundsPage() {
 
       const sortedFunds = allFunds.slice(0, maxItems).sort((a, b) => b.timestamp - a.timestamp)
       setFunds(sortedFunds)
-      localStorage.setItem("factionFundsNews", JSON.stringify(sortedFunds))
+      await db.set(STORES.CACHE, "factionFundsNews", sortedFunds)
 
       toast({
         title: "Success",
@@ -173,14 +182,32 @@ export default function FundsPage() {
     })
   }
 
-  const handleSaveMaxItems = () => {
-    localStorage.setItem("fundsMaxItems", tempMaxItems.toString())
+  const handleSaveMaxItems = async () => {
+    await db.set(STORES.SETTINGS, "fundsMaxItems", tempMaxItems)
     setMaxItems(tempMaxItems)
     setShowSettings(false)
     toast({
       title: "Settings saved",
       description: `Maximum fetch set to ${tempMaxItems} logs`,
     })
+  }
+
+  const handleSaveConfig = async (maxFetch: number) => {
+    if (maxFetch > 0) {
+      setMaxItems(maxFetch)
+      await db.set(STORES.SETTINGS, "fundsMaxFetch", maxFetch)
+      setShowConfigModal(false)
+      toast({
+        title: "Settings Saved",
+        description: `Maximum fetch count set to ${maxFetch}`,
+      })
+    } else {
+      toast({
+        title: "Invalid Input",
+        description: "Please enter a positive number",
+        variant: "destructive",
+      })
+    }
   }
 
   const formatCurrency = (amount: number) => {
@@ -368,7 +395,16 @@ export default function FundsPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <FundsStats
+            totalLogs={funds.length}
+            maxFetchCount={maxItems}
+            isFetching={isFetching}
+            fetchProgress={progress}
+            onFetch={handleBackfill}
+            onConfigClick={() => setShowConfigModal(true)}
+          />
+
           <Accordion type="single" collapsible className="bg-card border border-border rounded-lg">
             <AccordionItem value="withdraw" className="border-0">
               <AccordionTrigger className="px-6 py-4 hover:no-underline">
@@ -381,75 +417,6 @@ export default function FundsPage() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-
-          <div className="bg-card border border-border rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Package className="h-8 w-8 text-primary" />
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground">Total Funds Logs</h2>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm text-muted-foreground">Max fetch: {maxItems} logs</p>
-                    <button
-                      onClick={() => setShowSettings(!showSettings)}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      title="Configure max fetch"
-                    >
-                      <Settings size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {showSettings && (
-              <div className="mb-4 p-4 bg-background rounded-lg border border-border">
-                <label className="block text-sm font-semibold text-foreground mb-2">Maximum Logs to Fetch</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    min="100"
-                    max="10000"
-                    step="100"
-                    value={tempMaxItems}
-                    onChange={(e) => setTempMaxItems(Number.parseInt(e.target.value) || 1000)}
-                    className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <button
-                    onClick={handleSaveMaxItems}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-semibold"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setShowSettings(false)}
-                    className="px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-4xl font-bold text-primary">{funds.length.toLocaleString()}</div>
-                {isFetching && (
-                  <p className="text-sm text-cyan-400 mt-2">
-                    Fetching {progress.current.toLocaleString()} / {progress.total.toLocaleString()}...
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={handleBackfill}
-                disabled={isFetching}
-                className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold"
-              >
-                <Package size={20} />
-                {isFetching ? "Fetching..." : "Fetch Historical Data"}
-              </button>
-            </div>
-          </div>
 
           {funds.length > 0 && (
             <div className="bg-card border border-border rounded-lg p-4">
@@ -528,6 +495,13 @@ export default function FundsPage() {
           )}
         </div>
       </main>
+
+      <FundsConfigModal
+        isOpen={showConfigModal}
+        currentMaxFetch={maxItems}
+        onSave={handleSaveConfig}
+        onClose={() => setShowConfigModal(false)}
+      />
 
       <footer className="flex-shrink-0 border-t border-border bg-card px-6 py-4">
         <div className="text-center text-sm">

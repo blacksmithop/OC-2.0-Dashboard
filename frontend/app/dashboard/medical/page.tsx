@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw, Heart, AlertTriangle, Settings, X } from "lucide-react"
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
-import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
-import { clearAllCache } from "@/lib/cache/cache-reset"
 import { handleFullLogout } from "@/lib/logout-handler"
 import type { MedicalItem, MedicalAlertSettings } from "@/lib/medical-types"
 import { DEFAULT_MEDICAL_ALERTS, ALL_BLOOD_BAGS, ALL_EMPTY_BLOOD_BAGS, ALL_FIRST_AID_KITS } from "@/lib/medical-types"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { getItemImageUrl, getItemName } from "@/lib/items-fallback"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
+import { db, STORES } from "@/lib/db/indexeddb"
 
 export default function MedicalPage() {
   const router = useRouter()
@@ -19,30 +19,34 @@ export default function MedicalPage() {
   const [medicalItems, setMedicalItems] = useState<MedicalItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [alertSettings, setAlertSettings] = useState<MedicalAlertSettings>(DEFAULT_MEDICAL_ALERTS)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [tempAlertSettings, setTempAlertSettings] = useState<MedicalAlertSettings>(DEFAULT_MEDICAL_ALERTS)
+  const [medicalDropdownOpen, setMedicalDropdownOpen] = useState(false)
 
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (!apiKey) {
-      router.push("/")
-      return
-    }
-
-    const savedSettings = localStorage.getItem("medicalAlertSettings")
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings)
-        setAlertSettings({ ...DEFAULT_MEDICAL_ALERTS, ...parsed })
-        setTempAlertSettings({ ...DEFAULT_MEDICAL_ALERTS, ...parsed })
-      } catch (e) {
-        console.error("[v0] Failed to parse medical alert settings:", e)
+    const initializePage = async () => {
+      const apiKey = await apiKeyManager.getApiKey() // Fixed to use getApiKey() instead of get()
+      if (!apiKey) {
+        router.push("/")
+        return
       }
+
+      const savedSettings = await db.get(STORES.CACHE, "medicalAlertSettings")
+      if (savedSettings) {
+        try {
+          const parsed = typeof savedSettings === "string" ? JSON.parse(savedSettings) : savedSettings
+          setAlertSettings({ ...DEFAULT_MEDICAL_ALERTS, ...parsed })
+          setTempAlertSettings({ ...DEFAULT_MEDICAL_ALERTS, ...parsed })
+        } catch (e) {
+          console.error("[v0] Failed to parse medical alert settings:", e)
+        }
+      }
+
+      fetchMedicalData(apiKey)
     }
 
-    fetchMedicalData(apiKey)
+    initializePage()
   }, [router])
 
   const fetchMedicalData = async (apiKey: string) => {
@@ -89,34 +93,11 @@ export default function MedicalPage() {
     setTimeout(() => router.push("/"), 500)
   }
 
-  const handleReset = async () => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (apiKey) {
-      clearAllCache()
-      setMedicalItems([])
-      await fetchMedicalData(apiKey)
-      toast({
-        title: "Success",
-        description: "Cache cleared successfully",
-      })
-    }
-  }
-
   const handleRefresh = async () => {
-    const apiKey = localStorage.getItem("factionApiKey")
+    const apiKey = await apiKeyManager.getApiKey()
     if (apiKey) {
       await fetchMedicalData(apiKey)
     }
-  }
-
-  const handleSaveSettings = () => {
-    localStorage.setItem("medicalAlertSettings", JSON.stringify(tempAlertSettings))
-    setAlertSettings(tempAlertSettings)
-    setShowSettingsModal(false)
-    toast({
-      title: "Settings saved",
-      description: "Medical alert thresholds updated",
-    })
   }
 
   const isLowStock = (item: MedicalItem) => {
@@ -130,14 +111,11 @@ export default function MedicalPage() {
     const itemMap = new Map(medicalItems.map((item) => [item.ID, item]))
 
     let templates: Array<{ id: number; name: string }> = []
-    if (category === "Blood Bags (Filled)") {
-      templates = ALL_BLOOD_BAGS
-    } else if (category === "Empty Blood Bags") {
-      templates = ALL_EMPTY_BLOOD_BAGS
+    if (category === "Blood Bags") {
+      templates = [...ALL_BLOOD_BAGS, ...ALL_EMPTY_BLOOD_BAGS]
     } else if (category === "First Aid Kits") {
       templates = ALL_FIRST_AID_KITS
     } else {
-      // Other medical items - only show what exists
       return medicalItems
         .filter((item) => {
           const isBloodBag = ALL_BLOOD_BAGS.some((bb) => bb.id === item.ID)
@@ -155,11 +133,14 @@ export default function MedicalPage() {
   }
 
   const categories = [
-    { name: "Blood Bags (Filled)", items: getItemsForCategory("Blood Bags (Filled)") },
-    { name: "Empty Blood Bags", items: getItemsForCategory("Empty Blood Bags") },
+    { name: "Blood Bags", items: getItemsForCategory("Blood Bags") },
     { name: "First Aid Kits", items: getItemsForCategory("First Aid Kits") },
     { name: "Other Medical Items", items: getItemsForCategory("Other Medical Items") },
   ].filter((cat) => cat.items.length > 0)
+
+  const totalItemTypes = medicalItems.length
+  const totalStock = medicalItems.reduce((sum, item) => sum + item.quantity, 0)
+  const outOfStock = medicalItems.filter((item) => item.quantity === 0).length
 
   if (isLoading) {
     return (
@@ -171,8 +152,6 @@ export default function MedicalPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <ResetConfirmationDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen} onConfirm={handleReset} />
-
       {showSettingsModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
@@ -218,7 +197,15 @@ export default function MedicalPage() {
                 Cancel
               </button>
               <button
-                onClick={handleSaveSettings}
+                onClick={async () => {
+                  await db.set(STORES.CACHE, "medicalAlertSettings", tempAlertSettings)
+                  setAlertSettings(tempAlertSettings)
+                  setShowSettingsModal(false)
+                  toast({
+                    title: "Settings saved",
+                    description: "Medical alert thresholds updated",
+                  })
+                }}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-semibold"
               >
                 Save Settings
@@ -267,16 +254,6 @@ export default function MedicalPage() {
                   </button>
                   <button
                     onClick={() => {
-                      setDropdownOpen(false)
-                      setResetDialogOpen(true)
-                    }}
-                    className="w-full px-4 py-3 text-left flex items-center gap-2 transition-colors border-t border-border"
-                  >
-                    <RotateCcw size={18} />
-                    Reset
-                  </button>
-                  <button
-                    onClick={() => {
                       handleLogout()
                       setDropdownOpen(false)
                     }}
@@ -300,24 +277,57 @@ export default function MedicalPage() {
                 <Heart className="h-8 w-8 text-rose-500" />
                 <div>
                   <h2 className="text-2xl font-bold text-foreground">Medical Inventory</h2>
-                  <p className="text-sm text-muted-foreground">{medicalItems.length} item types</p>
+                  <div className="flex flex-wrap gap-3 text-sm mt-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-cyan-400">{totalItemTypes}</span>
+                      <span className="text-muted-foreground">item types,</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">total stock</span>
+                      <span className="font-bold text-emerald-400">{totalStock.toLocaleString()},</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-red-400">{outOfStock}</span>
+                      <span className="text-muted-foreground">out of stock</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="relative">
                 <button
-                  onClick={() => setShowSettingsModal(true)}
-                  className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/80 transition-colors flex items-center gap-2"
+                  onClick={() => setMedicalDropdownOpen(!medicalDropdownOpen)}
+                  className="p-2 rounded-lg transition-colors border border-border hover:bg-muted"
+                  title="Actions"
                 >
-                  <Settings size={18} />
-                  Alert Settings
+                  <MoreVertical size={20} />
                 </button>
-                <button
-                  onClick={handleRefresh}
-                  className="px-6 py-3 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors flex items-center gap-2 font-semibold"
-                >
-                  <RotateCcw size={20} />
-                  Refresh
-                </button>
+                {medicalDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMedicalDropdownOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+                      <button
+                        onClick={() => {
+                          setShowSettingsModal(true)
+                          setMedicalDropdownOpen(false)
+                        }}
+                        className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-accent transition-colors"
+                      >
+                        <Settings size={18} />
+                        Alert Settings
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleRefresh()
+                          setMedicalDropdownOpen(false)
+                        }}
+                        className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-accent transition-colors border-t border-border"
+                      >
+                        <RotateCcw size={18} />
+                        Refresh
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -364,7 +374,6 @@ export default function MedicalPage() {
                             }`}
                           >
                             <div className="flex flex-col items-center gap-2">
-                              {/* Item thumbnail */}
                               <div className="relative">
                                 <img
                                   src={getItemImageUrl(template.id) || "/placeholder.svg"}
@@ -381,7 +390,6 @@ export default function MedicalPage() {
                                 )}
                               </div>
 
-                              {/* Item name */}
                               <div className="text-center w-full">
                                 <p
                                   className={`font-semibold text-xs leading-tight line-clamp-2 ${
@@ -393,7 +401,6 @@ export default function MedicalPage() {
                                 </p>
                               </div>
 
-                              {/* Quantity */}
                               <div className="text-center w-full">
                                 <p
                                   className={`text-xl font-bold ${

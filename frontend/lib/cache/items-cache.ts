@@ -1,3 +1,5 @@
+import { db, STORES } from "../db/indexeddb"
+
 export interface TornItem {
   id: number
   name: string
@@ -38,12 +40,11 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
 
 export async function getItemsFromCache(): Promise<Map<number, TornItem>> {
   try {
-    const cached = localStorage.getItem(ITEMS_CACHE_KEY)
-    const expiry = localStorage.getItem(ITEMS_CACHE_EXPIRY_KEY)
+    const cached = await db.get(STORES.CACHE, ITEMS_CACHE_KEY)
+    const expiry = await db.get<string>(STORES.CACHE, ITEMS_CACHE_EXPIRY_KEY)
 
     if (cached && expiry && Date.now() < Number.parseInt(expiry)) {
-      const data = JSON.parse(cached)
-      return new Map(Object.entries(data).map(([key, value]: [string, any]) => [Number.parseInt(key), value]))
+      return new Map(Object.entries(cached).map(([key, value]: [string, any]) => [Number.parseInt(key), value]))
     }
   } catch (error) {
     console.error("[v0] Error reading items cache:", error)
@@ -54,24 +55,24 @@ export async function getItemsFromCache(): Promise<Map<number, TornItem>> {
 
 export async function fetchAndCacheItems(apiKey: string): Promise<Map<number, TornItem>> {
   try {
-    // Check if we have valid cached data first
-    const cached = localStorage.getItem(ITEMS_CACHE_KEY)
-    const expiry = localStorage.getItem(ITEMS_CACHE_EXPIRY_KEY)
+    const cached = await db.get(STORES.CACHE, ITEMS_CACHE_KEY)
+    const expiry = await db.get<string>(STORES.CACHE, ITEMS_CACHE_EXPIRY_KEY)
 
     if (cached && expiry && Date.now() < Number.parseInt(expiry)) {
       console.log("[v0] Using cached items data (still valid)")
-      const data = JSON.parse(cached)
-      return new Map(Object.entries(data).map(([key, value]: [string, any]) => [Number.parseInt(key), value]))
+      return new Map(Object.entries(cached).map(([key, value]: [string, any]) => [Number.parseInt(key), value]))
     }
 
-    // Cache expired or doesn't exist, fetch from API
     console.log("[v0] Fetching items from API (cache expired or missing)")
-    const response = await fetch("https://api.torn.com/v2/torn/items?sort=ASC&striptags=true&comment=oc_dashboard_items", {
-      headers: {
-        Authorization: `ApiKey ${apiKey}`,
-        accept: "application/json",
+    const response = await fetch(
+      "https://api.torn.com/v2/torn/items?sort=ASC&striptags=true&comment=oc_dashboard_items",
+      {
+        headers: {
+          Authorization: `ApiKey ${apiKey}`,
+          accept: "application/json",
+        },
       },
-    })
+    )
 
     const data = await response.json()
 
@@ -102,9 +103,8 @@ export async function fetchAndCacheItems(apiKey: string): Promise<Map<number, To
       }
     })
 
-    // Cache the items
-    localStorage.setItem(ITEMS_CACHE_KEY, JSON.stringify(itemsMap))
-    localStorage.setItem(ITEMS_CACHE_EXPIRY_KEY, (Date.now() + CACHE_DURATION).toString())
+    await db.set(STORES.CACHE, ITEMS_CACHE_KEY, itemsMap, CACHE_DURATION)
+    await db.set(STORES.CACHE, ITEMS_CACHE_EXPIRY_KEY, (Date.now() + CACHE_DURATION).toString())
     console.log("[v0] Cached items data for 24 hours")
 
     return new Map(Object.entries(itemsMap).map(([key, value]) => [Number.parseInt(key), value]))
@@ -113,7 +113,6 @@ export async function fetchAndCacheItems(apiKey: string): Promise<Map<number, To
     if (error instanceof Error && error.message.includes("does not have access")) {
       throw error
     }
-    // Fall back to cache if available
     console.log("[v0] Falling back to cached items data")
     return getItemsFromCache()
   }

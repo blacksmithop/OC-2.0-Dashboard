@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import LoginForm from "@/components/login-form"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
 
 export default function Home() {
   const router = useRouter()
@@ -11,12 +12,16 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (apiKey) {
-      setIsLoggedIn(true)
-      router.push("/dashboard")
+    const checkAuth = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (apiKey) {
+        setIsLoggedIn(true)
+        router.push("/dashboard")
+      }
+      setIsLoading(false)
     }
-    setIsLoading(false)
+
+    checkAuth()
   }, [router])
 
   if (isLoading) {

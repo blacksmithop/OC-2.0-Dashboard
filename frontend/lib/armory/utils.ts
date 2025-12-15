@@ -1,5 +1,6 @@
 import type { ArmoryNewsItem, GroupedLog } from "./types"
 import type { TornItem } from "@/lib/cache/items-cache"
+import { db, STORES } from "@/lib/db/indexeddb"
 
 /**
  * Groups consecutive logs with the same user, action, item, and target
@@ -187,22 +188,27 @@ export function filterArmoryNews(
 }
 
 /**
- * Loads max fetch count from localStorage with fallback
+ * Loads max fetch count from IndexedDB with fallback
  */
-export function loadMaxFetchCount(defaultValue = 1000): number {
-  const saved = localStorage.getItem("armoryMaxFetch")
-  if (saved) {
-    const parsed = Number.parseInt(saved, 10)
-    if (!Number.isNaN(parsed) && parsed > 0) {
-      return parsed
+export async function loadMaxFetchCount(defaultValue = 1000): Promise<number> {
+  try {
+    const saved = await db.get<number>(STORES.CACHE, "armoryMaxFetch")
+    if (saved && saved > 0) {
+      return saved
     }
+  } catch (error) {
+    console.error("[v0] Error loading max fetch count:", error)
   }
   return defaultValue
 }
 
 /**
- * Saves max fetch count to localStorage
+ * Saves max fetch count to IndexedDB
  */
-export function saveMaxFetchCount(maxFetch: number): void {
-  localStorage.setItem("armoryMaxFetch", maxFetch.toString())
+export async function saveMaxFetchCount(maxFetch: number): Promise<void> {
+  try {
+    await db.set(STORES.CACHE, "armoryMaxFetch", maxFetch)
+  } catch (error) {
+    console.error("[v0] Error saving max fetch count:", error)
+  }
 }

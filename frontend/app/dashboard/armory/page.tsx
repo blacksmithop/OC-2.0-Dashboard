@@ -7,6 +7,7 @@ import { Package, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
 import { fetchAndCacheItems } from "@/lib/cache/items-cache"
 import type { TornItem } from "@/lib/cache/items-cache"
 import { fetchAndCacheMembers, type FactionMember } from "@/lib/cache/members-cache"
+import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 import ItemModal from "@/components/crimes/item-modal"
 import { handleFullLogout } from "@/lib/logout-handler"
 import ArmoryHeader from "@/components/armory/armory-header"
@@ -14,6 +15,8 @@ import ArmoryStats from "@/components/armory/armory-stats"
 import ArmoryFilters from "@/components/armory/armory-filters"
 import ArmoryLogCard from "@/components/armory/armory-log-card"
 import ArmoryConfigModal from "@/components/armory/armory-config-modal"
+import { apiKeyManager } from "@/lib/auth/api-key-manager"
+import { db, STORES } from "@/lib/db/indexeddb"
 
 import type { ArmoryNewsItem, FetchProgress } from "@/lib/armory/types"
 import { fetchHistoricalArmoryNews } from "@/lib/armory/fetcher"
@@ -53,18 +56,28 @@ export default function ArmoryPage() {
   const [selectedItemFilter, setSelectedItemFilter] = useState<string>("All Items")
 
   useEffect(() => {
-    const apiKey = localStorage.getItem("factionApiKey")
-    if (!apiKey) {
-      router.push("/")
-      return
+    const init = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (!apiKey) {
+        router.push("/")
+        return
+      }
+
+      try {
+        await fetchAndCacheFactionBasic(apiKey)
+      } catch (error) {
+        console.error("[v0] Error fetching faction basic data:", error)
+      }
+
+      const savedMaxFetch = await loadMaxFetchCount()
+      setMaxFetchCount(savedMaxFetch)
+
+      loadItemsData(apiKey)
+      loadMembersData(apiKey)
+      loadCachedData()
     }
 
-    const savedMaxFetch = loadMaxFetchCount()
-    setMaxFetchCount(savedMaxFetch)
-
-    loadItemsData(apiKey)
-    loadMembersData(apiKey)
-    loadCachedData()
+    init()
   }, [router])
 
   const loadItemsData = async (apiKey: string) => {
@@ -89,20 +102,23 @@ export default function ArmoryPage() {
     }
   }
 
-  const loadCachedData = () => {
-    const cached = loadCachedArmoryNews()
+  const loadCachedData = async () => {
+    const cached = await loadCachedArmoryNews()
     if (cached.length > 0) {
       setArmoryNews(cached)
     }
   }
 
   const handleFetchHistorical = async () => {
-    const factionId = localStorage.getItem("factionId")
+    console.log("[v0] Fetching factionId from IndexedDB")
+    const factionId = await db.get<string>(STORES.CACHE, "factionId")
+
+    console.log("[v0] FactionId retrieved:", factionId)
 
     if (!factionId) {
       toast({
         title: "Error",
-        description: "Missing faction ID",
+        description: "Missing faction ID. Please refresh the page.",
         variant: "destructive",
       })
       return
@@ -113,6 +129,7 @@ export default function ArmoryPage() {
     setFetchProgress({ current: 0, max: maxFetchCount, requestNumber: 0 })
 
     try {
+      console.log("[v0] Starting armory news fetch for faction:", factionId)
       toast({
         title: "Fetching",
         description: "Starting armory news fetch...",
@@ -141,8 +158,9 @@ export default function ArmoryPage() {
         },
       })
 
+      console.log("[v0] Armory news fetched successfully, count:", news.length)
       setArmoryNews(news)
-      saveCachedArmoryNews(news)
+      await saveCachedArmoryNews(news)
 
       toast({
         title: "Success",
@@ -181,8 +199,8 @@ export default function ArmoryPage() {
     }, 500)
   }
 
-  const handleClearCache = () => {
-    clearArmoryCache()
+  const handleClearCache = async () => {
+    await clearArmoryCache()
     setArmoryNews([])
     setCurrentPage(1)
     toast({
@@ -191,10 +209,10 @@ export default function ArmoryPage() {
     })
   }
 
-  const handleSaveConfig = (maxFetch: number) => {
+  const handleSaveConfig = async (maxFetch: number) => {
     if (maxFetch > 0) {
       setMaxFetchCount(maxFetch)
-      saveMaxFetchCount(maxFetch)
+      await saveMaxFetchCount(maxFetch)
       setShowConfigModal(false)
       toast({
         title: "Settings Saved",

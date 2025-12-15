@@ -55,6 +55,15 @@ class RateLimiter {
 export async function fetchHistoricalArmoryNews(factionId: string, options: FetchOptions): Promise<ArmoryNewsItem[]> {
   const { maxCount, onProgress, onError, delayMs = 5000, rateLimit = { requestsPerMinute: 10 } } = options
 
+  if (!factionId) {
+    const error = new Error("No faction ID available. Please refresh the dashboard to load faction data.")
+    console.error("[v0] fetchHistoricalArmoryNews called without factionId")
+    if (onError) {
+      onError(error)
+    }
+    throw error
+  }
+
   const rateLimiter = new RateLimiter(rateLimit.requestsPerMinute)
 
   const allNews: ArmoryNewsItem[] = []
@@ -68,7 +77,7 @@ export async function fetchHistoricalArmoryNews(factionId: string, options: Fetc
     console.log("[v0] Fetching latest armory news (fresh, not cached)")
     const rawNews = await fetchArmoryNews(factionId, undefined, true)
 
-    if (Object.keys(rawNews).length > 0) {
+    if (rawNews && typeof rawNews === "object" && Object.keys(rawNews).length > 0) {
       const parsed = parseArmoryNewsItems(rawNews)
       for (const item of parsed) {
         if (!seenUuids.has(item.uuid)) {
@@ -83,6 +92,7 @@ export async function fetchHistoricalArmoryNews(factionId: string, options: Fetc
         const oldestInBatch = allNews[allNews.length - 1]
         lastOldestId = oldestInBatch.uuid
         toTimestamp = oldestInBatch.timestamp
+        console.log(`[v0] First batch fetched, oldest timestamp: ${toTimestamp}, count: ${allNews.length}`)
       }
 
       onProgress?.({
@@ -94,21 +104,12 @@ export async function fetchHistoricalArmoryNews(factionId: string, options: Fetc
     }
 
     while (toTimestamp && allNews.length < maxCount) {
-      const cacheKey = `armory_to_${toTimestamp}`
-      const cachedData = typeof window !== "undefined" ? localStorage.getItem(`crime_api_cache_${cacheKey}`) : null
-      const isCacheHit = !!cachedData
+      console.log(`[v0] Fetching next batch with to=${toTimestamp} (current: ${allNews.length}/${maxCount})`)
 
-      if (!cachedData) {
-        await rateLimiter.waitForSlot()
-      } else {
-        console.log(`[v0] Cache HIT for timestamp ${toTimestamp} - skipping rate limit`)
-      }
-
-      console.log(`[v0] Fetching armory news with to=${toTimestamp} (${allNews.length}/${maxCount})`)
       const rawNews = await fetchArmoryNews(factionId, toTimestamp, false)
 
-      if (Object.keys(rawNews).length === 0) {
-        console.log("[v0] No more armory news to fetch")
+      if (!rawNews || typeof rawNews !== "object" || Object.keys(rawNews).length === 0) {
+        console.log("[v0] No more armory news to fetch (empty response)")
         break
       }
 
@@ -130,6 +131,7 @@ export async function fetchHistoricalArmoryNews(factionId: string, options: Fetc
       batch.sort((a, b) => b.timestamp - a.timestamp)
 
       const oldestInBatch = batch[batch.length - 1]
+
       if (lastOldestId === oldestInBatch.uuid) {
         console.log("[v0] Reached end of pagination (same oldest ID)")
         break
@@ -138,25 +140,31 @@ export async function fetchHistoricalArmoryNews(factionId: string, options: Fetc
       lastOldestId = oldestInBatch.uuid
       allNews.push(...batch)
 
+      console.log(
+        `[v0] Added ${batch.length} new logs, total: ${allNews.length}, next oldest: ${oldestInBatch.timestamp}`,
+      )
+
       onProgress?.({
         current: allNews.length,
         max: maxCount,
         requestNumber: rateLimiter.getRequestNumber(),
-        isCacheHit,
+        isCacheHit: false,
       })
 
       toTimestamp = oldestInBatch.timestamp
 
-      if (toTimestamp && allNews.length < maxCount && !isCacheHit) {
+      if (allNews.length < maxCount) {
         await new Promise((resolve) => setTimeout(resolve, delayMs))
+        await rateLimiter.waitForSlot()
       }
     }
 
     allNews.sort((a, b) => b.timestamp - a.timestamp)
+    const finalNews = allNews.slice(0, maxCount)
 
-    console.log(`[v0] Completed fetching ${allNews.length} armory logs (target: ${maxCount})`)
+    console.log(`[v0] Completed fetching ${finalNews.length} armory logs (target: ${maxCount})`)
 
-    return allNews
+    return finalNews
   } catch (error) {
     console.error("[v0] Error fetching armory news:", error)
     if (onError) {

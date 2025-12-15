@@ -1,3 +1,5 @@
+import { db, STORES } from "../db/indexeddb"
+
 export interface FactionBasic {
   id: number
   name: string
@@ -30,16 +32,15 @@ interface CachedData {
 
 export async function fetchAndCacheFactionBasic(apiKey: string): Promise<FactionBasic> {
   // Check cache first
-  const cached = localStorage.getItem(CACHE_KEY)
+  const cached = await db.get<CachedData>(STORES.CACHE, CACHE_KEY)
   if (cached) {
     try {
-      const cachedData: CachedData = JSON.parse(cached)
       const now = Date.now()
-      
+
       // If cache is still valid, return it
-      if (now - cachedData.timestamp < CACHE_DURATION) {
+      if (now - cached.timestamp < CACHE_DURATION) {
         console.log("[v0] Using cached faction basic data")
-        return cachedData.data
+        return cached.data
       }
     } catch (e) {
       console.error("[v0] Failed to parse cached faction basic:", e)
@@ -75,12 +76,12 @@ export async function fetchAndCacheFactionBasic(apiKey: string): Promise<Faction
     data: factionBasic,
     timestamp: Date.now(),
   }
-  localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData))
-  
+  await db.set(STORES.CACHE, CACHE_KEY, cacheData, CACHE_DURATION)
+
   // Also store in legacy format for backward compatibility
-  localStorage.setItem("factionBasic", JSON.stringify(data))
-  localStorage.setItem("factionId", factionBasic.id.toString())
-  localStorage.setItem("factionName", factionBasic.name)
+  await db.set(STORES.CACHE, "factionBasic", data)
+  await db.set(STORES.CACHE, "factionId", factionBasic.id.toString())
+  await db.set(STORES.CACHE, "factionName", factionBasic.name)
 
   return factionBasic
 }

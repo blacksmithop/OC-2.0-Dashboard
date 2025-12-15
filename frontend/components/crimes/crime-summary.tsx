@@ -6,6 +6,7 @@ import ItemModal from "./item-modal"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { sendRequiredItemsWebhook } from "@/lib/integration/discord-webhook"
 import { useToast } from "@/hooks/use-toast"
+import { thirdPartySettingsManager } from "@/lib/settings/third-party-manager"
 
 interface Crime {
   id: number
@@ -80,18 +81,14 @@ export default function CrimeSummary({
   const [sendingWebhook, setSendingWebhook] = useState(false)
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem("thirdPartySettings")
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings)
-        if (parsed.discord) {
-          setDiscordEnabled(parsed.discord.enabled || false)
-          setDiscordWebhookUrl(parsed.discord.webhookUrl || "")
-        }
-      } catch (err) {
-        console.error("Error loading Discord settings:", err)
+    const loadDiscordSettings = async () => {
+      const settings = await thirdPartySettingsManager.getSettings()
+      if (settings.discord) {
+        setDiscordEnabled(settings.discord.enabled || false)
+        setDiscordWebhookUrl(settings.discord.webhookUrl || "")
       }
     }
+    loadDiscordSettings()
   }, [])
 
   const summary = useMemo(() => {

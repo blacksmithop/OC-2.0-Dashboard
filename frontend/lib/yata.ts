@@ -20,22 +20,12 @@ interface YataResponse {
 const YATA_CACHE_KEY = "yata_members_cache"
 const YATA_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
+import { thirdPartySettingsManager } from "@/lib/settings/third-party-manager"
+
 export async function fetchYataMembers(apiKey: string): Promise<Map<number, YataMemberData>> {
-  // Check if YATA is enabled in settings
-  const settings = localStorage.getItem("thirdPartySettings")
-  if (settings) {
-    try {
-      const parsed = JSON.parse(settings)
-      if (!parsed.yata?.enabled) {
-        console.log("[v0] YATA integration is disabled in settings")
-        return new Map()
-      }
-    } catch (err) {
-      console.error("[v0] Error parsing settings:", err)
-      return new Map()
-    }
-  } else {
-    console.log("[v0] No settings found, YATA integration disabled")
+  const settings = await thirdPartySettingsManager.getSettings()
+  if (!settings.yata?.enabled) {
+    console.log("[v0] YATA integration is disabled in settings")
     return new Map()
   }
 
@@ -46,7 +36,7 @@ export async function fetchYataMembers(apiKey: string): Promise<Map<number, Yata
       const { data, timestamp } = JSON.parse(cached)
       if (Date.now() - timestamp < YATA_CACHE_DURATION) {
         console.log("[v0] Using cached YATA data")
-        return new Map(Object.entries(data).map(([id, member]: [string, any]) => [parseInt(id), member]))
+        return new Map(Object.entries(data).map(([id, member]: [string, any]) => [Number.parseInt(id), member]))
       }
     } catch (err) {
       console.error("[v0] Error parsing YATA cache:", err)
@@ -72,18 +62,18 @@ export async function fetchYataMembers(apiKey: string): Promise<Map<number, Yata
 
     // Cache the result
     const dataToCache = Object.fromEntries(
-      Object.entries(result.members).map(([id, member]) => [parseInt(id), member])
+      Object.entries(result.members).map(([id, member]) => [Number.parseInt(id), member]),
     )
     localStorage.setItem(
       YATA_CACHE_KEY,
       JSON.stringify({
         data: dataToCache,
         timestamp: Date.now(),
-      })
+      }),
     )
 
     console.log(`[v0] Fetched YATA data for ${Object.keys(result.members).length} members`)
-    return new Map(Object.entries(result.members).map(([id, member]) => [parseInt(id), member]))
+    return new Map(Object.entries(result.members).map(([id, member]) => [Number.parseInt(id), member]))
   } catch (err) {
     console.error("[v0] Error fetching YATA data:", err)
     return new Map()
