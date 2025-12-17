@@ -733,35 +733,41 @@ export default function CrimeReportsPage() {
                       onClick={() => toggleCrime(crime.name)}
                       className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <h4 className="font-semibold text-foreground">{crime.name}</h4>
                           <span className={`text-sm font-bold ${getDifficultyColor(crime.difficulty)}`}>
                             (Diff: {crime.difficulty})
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 text-sm">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                           {crime.successful > 0 && (
-                            <span className="text-green-400 font-bold">{crime.successful} Success</span>
+                            <span className="text-green-400 font-bold whitespace-nowrap">
+                              {crime.successful} Success
+                            </span>
                           )}
-                          {crime.failed > 0 && <span className="text-red-400 font-bold">{crime.failed} Failed</span>}
+                          {crime.failed > 0 && (
+                            <span className="text-red-400 font-bold whitespace-nowrap">{crime.failed} Failed</span>
+                          )}
                           {crime.planning > 0 && (
-                            <span className="text-blue-400 font-bold">{crime.planning} Planning</span>
+                            <span className="text-blue-400 font-bold whitespace-nowrap">{crime.planning} Planning</span>
                           )}
                           {crime.recruiting > 0 && (
-                            <span className="text-purple-400 font-bold">{crime.recruiting} Recruiting</span>
+                            <span className="text-purple-400 font-bold whitespace-nowrap">
+                              {crime.recruiting} Recruiting
+                            </span>
                           )}
                           {crime.expired > 0 && (
-                            <span className="text-gray-400 font-bold">{crime.expired} Expired</span>
+                            <span className="text-gray-400 font-bold whitespace-nowrap">{crime.expired} Expired</span>
                           )}
                           {crime.successRate !== "N/A" && (
-                            <span className="text-muted-foreground">({crime.successRate}%)</span>
+                            <span className="text-muted-foreground whitespace-nowrap">({crime.successRate}%)</span>
                           )}
                         </div>
                       </div>
                       <ChevronDown
                         size={20}
-                        className={`transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
+                        className={`transition-transform duration-300 flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
                       />
                     </button>
 
