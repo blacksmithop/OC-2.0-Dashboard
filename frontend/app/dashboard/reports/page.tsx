@@ -258,6 +258,8 @@ export default function CrimeReportsPage() {
         recruiting: number
         expired: number
         difficulty: number
+        totalPayout: number
+        totalRespect: number
       }
     >()
 
@@ -269,10 +271,16 @@ export default function CrimeReportsPage() {
         recruiting: 0,
         expired: 0,
         difficulty: crime.difficulty || 0,
+        totalPayout: 0,
+        totalRespect: 0,
       }
 
       if (crime.status === "Successful") {
         existing.successful++
+        if (crime.rewards) {
+          existing.totalPayout += crime.rewards.money || 0
+          existing.totalRespect += crime.rewards.respect || 0
+        }
       } else if (crime.status === "Failure" || crime.status === "Failed") {
         existing.failed++
       } else if (crime.status === "Planning") {
@@ -294,6 +302,8 @@ export default function CrimeReportsPage() {
       recruiting: data.recruiting,
       expired: data.expired,
       difficulty: data.difficulty,
+      totalPayout: data.totalPayout,
+      totalRespect: data.totalRespect,
       total: data.successful + data.failed + data.planning + data.recruiting + data.expired,
       successRate:
         data.successful + data.failed > 0
@@ -323,6 +333,20 @@ export default function CrimeReportsPage() {
     } else if (sortBy === "Difficulty") {
       filteredStats.sort((a, b) =>
         sortDirection === "desc" ? b.difficulty - a.difficulty : a.difficulty - b.difficulty,
+      )
+    } else if (sortBy === "Success") {
+      filteredStats.sort((a, b) =>
+        sortDirection === "desc" ? b.successful - a.successful : a.successful - b.successful,
+      )
+    } else if (sortBy === "Failed") {
+      filteredStats.sort((a, b) => (sortDirection === "desc" ? b.failed - a.failed : a.failed - b.failed))
+    } else if (sortBy === "Payout") {
+      filteredStats.sort((a, b) =>
+        sortDirection === "desc" ? b.totalPayout - a.totalPayout : a.totalPayout - b.totalPayout,
+      )
+    } else if (sortBy === "Respect") {
+      filteredStats.sort((a, b) =>
+        sortDirection === "desc" ? b.totalRespect - a.totalRespect : a.totalRespect - b.totalRespect,
       )
     } else if (sortBy === "Success Rate") {
       filteredStats.sort((a, b) => {
@@ -434,7 +458,6 @@ export default function CrimeReportsPage() {
       }
 
       if (allCrimes.length > 0) {
-        // Fixed db.put to db.set for IndexedDB API
         await db.set(STORES.CACHE, "factionHistoricalCrimes", allCrimes)
         await db.set(STORES.CACHE, "lastHistoricalFetch", Date.now())
         console.log(`[v0] Fetched and stored ${allCrimes.length} historical crimes`)
@@ -626,7 +649,7 @@ export default function CrimeReportsPage() {
 
               <div className="bg-card border border-border rounded-lg p-4 space-y-4">
                 <div className="border-b border-border pb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="flex-1">
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Search Crime</label>
                       <input
@@ -636,6 +659,33 @@ export default function CrimeReportsPage() {
                         placeholder="Search by crime name..."
                         className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       />
+                    </div>
+
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Sort By</label>
+                      <div className="flex gap-2">
+                        <select
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value)}
+                          className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="Total">Total Count</option>
+                          <option value="Success">Success Count</option>
+                          <option value="Failed">Failed Count</option>
+                          <option value="Difficulty">Difficulty</option>
+                          <option value="Payout">Total Payout</option>
+                          <option value="Respect">Total Respect</option>
+                          <option value="Success Rate">Success Rate</option>
+                          <option value="Name">Name</option>
+                        </select>
+                        <button
+                          onClick={() => setSortDirection(sortDirection === "asc" ? "desc" : "asc")}
+                          className="px-3 py-2 bg-background border border-border rounded-lg text-sm hover:bg-accent transition-colors"
+                          title={sortDirection === "asc" ? "Ascending" : "Descending"}
+                        >
+                          {sortDirection === "asc" ? "↑" : "↓"}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex-1">
@@ -833,12 +883,12 @@ export default function CrimeReportsPage() {
                         <div className="mb-6 grid grid-cols-2 gap-4">
                           <div className="bg-background rounded-lg p-4 border border-border">
                             <div className="text-xs text-muted-foreground mb-1">Total Money</div>
-                            <div className="text-xl font-bold text-green-500">{formatCurrency(totalMoney)}</div>
+                            <div className="text-xl font-bold text-green-500">{formatCurrency(crime.totalPayout)}</div>
                           </div>
                           <div className="bg-background rounded-lg p-4 border border-border">
                             <div className="text-xs text-muted-foreground mb-1">Average Money</div>
                             <div className="text-xl font-bold text-green-500">
-                              {formatCurrency(Math.round(avgMoney))}
+                              {formatCurrency(Math.round(crime.totalPayout / crime.successful))}
                             </div>
                           </div>
                         </div>
