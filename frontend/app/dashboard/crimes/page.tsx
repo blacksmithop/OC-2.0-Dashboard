@@ -637,6 +637,7 @@ export default function CrimesPage() {
             items={items}
             onReloadCrime={handleReloadCrime}
             minPassRate={minPassRate}
+            factionId={factionId}
             cprTrackerData={cprTrackerData}
             cprTrackerEnabled={cprTrackerEnabled}
             membersNotInOC={membersNotInOC}

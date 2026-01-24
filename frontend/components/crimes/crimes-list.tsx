@@ -14,11 +14,14 @@ interface CrimesListProps {
   members: Member[]
   items: Map<number, any>
   onMemberClick?: (memberId: number) => void
-  onCrimeReload?: (crimeId: number) => Promise<Crime | null>
+  onReloadCrime?: (crimeId: number) => Promise<Crime | null>
   minPassRate: number
-  factionId: number | null
+  factionId?: number | null
   cprTrackerData: any
   cprTrackerEnabled: boolean
+  membersNotInOC?: Member[]
+  onMemberNameClick?: (memberId: number) => void
+  selectedMemberId?: number | null
 }
 
 export default function CrimesList({
@@ -26,11 +29,14 @@ export default function CrimesList({
   members,
   items,
   onMemberClick,
-  onCrimeReload,
+  onReloadCrime,
   minPassRate,
-  factionId,
+  factionId = null,
   cprTrackerData,
   cprTrackerEnabled,
+  membersNotInOC,
+  onMemberNameClick,
+  selectedMemberId,
 }: CrimesListProps) {
   const [collapsedStatus, setCollapsedStatus] = useState<Set<string>>(new Set(STATUS_ORDER))
   const [selectedItem, setSelectedItem] = useState<any>(null)
@@ -192,12 +198,12 @@ export default function CrimesList({
   }, [])
 
   const handleReloadCrime = async (crimeId: number) => {
-    if (!onCrimeReload || reloadingCrimes.has(crimeId)) return
+    if (!onReloadCrime || reloadingCrimes.has(crimeId)) return
 
     setReloadingCrimes((prev) => new Set(prev).add(crimeId))
 
     try {
-      await onCrimeReload(crimeId)
+      await onReloadCrime(crimeId)
     } finally {
       setReloadingCrimes((prev) => {
         const next = new Set(prev)
@@ -287,7 +293,7 @@ export default function CrimesList({
                     items={items}
                     memberMap={memberMap}
                     onItemClick={setSelectedItem}
-                    onReloadCrime={onCrimeReload ? handleReloadCrime : undefined}
+                    onReloadCrime={onReloadCrime ? handleReloadCrime : undefined}
                     isReloading={reloadingCrimes.has(crime.id)}
                     minPassRate={minPassRate}
                     factionId={factionId}

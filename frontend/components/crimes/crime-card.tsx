@@ -90,18 +90,15 @@ export default function CrimeCard({
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            {factionId ? (
-              <a
-                href={`https://www.torn.com/factions.php?step=profile&ID=${factionId}#/tab=crimes&crimeId=${crime.id}`}
+            <a
+                href={`https://www.torn.com/factions.php?step=your&type=1#/tab=crimes&crimeId=${crime.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground font-normal hover:text-primary hover:underline transition-colors"
+                title="View crime in Torn"
               >
                 {crime.name}
               </a>
-            ) : (
-              <h4 className="text-foreground font-normal">{crime.name}</h4>
-            )}
             <button
               onClick={() => copyToClipboard(crime.id)}
               title="Copy ID"
