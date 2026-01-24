@@ -7,16 +7,12 @@ export interface ThirdPartySettings {
     enabled: boolean
     apiKey: string
   }
-  cprTracker: {
+  tornStats: {
     enabled: boolean
     apiKey: string
   }
   yata: {
     enabled: boolean
-  }
-  discord: {
-    enabled: boolean
-    webhookUrl: string
   }
 }
 
@@ -27,23 +23,19 @@ export const defaultThirdPartySettings: ThirdPartySettings = {
     enabled: false,
     apiKey: "",
   },
-  cprTracker: {
+  tornStats: {
     enabled: false,
     apiKey: "",
   },
   yata: {
     enabled: false,
   },
-  discord: {
-    enabled: false,
-    webhookUrl: "",
-  },
 }
 
 class ThirdPartySettingsManager {
   private readonly SETTINGS_KEY = "thirdPartySettings"
   private readonly FFSCOUTER_KEY = "FFSCOUTER_API_KEY"
-  private readonly CPR_TRACKER_KEY = "CPR_TRACKER_API_KEY"
+  private readonly TORN_STATS_KEY = "TORN_STATS_API_KEY"
 
   async getSettings(): Promise<ThirdPartySettings> {
     try {
@@ -54,9 +46,8 @@ class ThirdPartySettingsManager {
           ...defaultThirdPartySettings,
           ...settings,
           ffScouter: { ...defaultThirdPartySettings.ffScouter, ...(settings.ffScouter || {}) },
-          cprTracker: { ...defaultThirdPartySettings.cprTracker, ...(settings.cprTracker || {}) },
+          tornStats: { ...defaultThirdPartySettings.tornStats, ...(settings.tornStats || {}) },
           yata: { ...defaultThirdPartySettings.yata, ...(settings.yata || {}) },
-          discord: { ...defaultThirdPartySettings.discord, ...(settings.discord || {}) },
         }
       }
 
@@ -86,10 +77,10 @@ class ThirdPartySettingsManager {
         await db.delete(STORES.CACHE, this.FFSCOUTER_KEY)
       }
 
-      if (settings.cprTracker.enabled && settings.cprTracker.apiKey) {
-        await db.set(STORES.CACHE, this.CPR_TRACKER_KEY, settings.cprTracker.apiKey)
+      if (settings.tornStats.enabled && settings.tornStats.apiKey) {
+        await db.set(STORES.CACHE, this.TORN_STATS_KEY, settings.tornStats.apiKey)
       } else {
-        await db.delete(STORES.CACHE, this.CPR_TRACKER_KEY)
+        await db.delete(STORES.CACHE, this.TORN_STATS_KEY)
       }
 
       // Also save to localStorage for backwards compatibility
@@ -99,10 +90,10 @@ class ThirdPartySettingsManager {
       } else {
         localStorage.removeItem(this.FFSCOUTER_KEY)
       }
-      if (settings.cprTracker.enabled && settings.cprTracker.apiKey) {
-        localStorage.setItem(this.CPR_TRACKER_KEY, settings.cprTracker.apiKey)
+      if (settings.tornStats.enabled && settings.tornStats.apiKey) {
+        localStorage.setItem(this.TORN_STATS_KEY, settings.tornStats.apiKey)
       } else {
-        localStorage.removeItem(this.CPR_TRACKER_KEY)
+        localStorage.removeItem(this.TORN_STATS_KEY)
       }
     } catch (error) {
       console.error("[v0] Error saving third-party settings:", error)
@@ -123,16 +114,16 @@ class ThirdPartySettingsManager {
     }
   }
 
-  async getCPRTrackerApiKey(): Promise<string | null> {
+  async getTornStatsApiKey(): Promise<string | null> {
     try {
-      const key = await db.get<string>(STORES.CACHE, this.CPR_TRACKER_KEY)
+      const key = await db.get<string>(STORES.CACHE, this.TORN_STATS_KEY)
       if (key) return key
 
       // Fallback to localStorage
-      return localStorage.getItem(this.CPR_TRACKER_KEY)
+      return localStorage.getItem(this.TORN_STATS_KEY)
     } catch (error) {
-      console.error("[v0] Error getting CPR Tracker API key:", error)
-      return localStorage.getItem(this.CPR_TRACKER_KEY)
+      console.error("[v0] Error getting TornStats API key:", error)
+      return localStorage.getItem(this.TORN_STATS_KEY)
     }
   }
 
@@ -140,12 +131,12 @@ class ThirdPartySettingsManager {
     try {
       await db.delete(STORES.CACHE, this.SETTINGS_KEY)
       await db.delete(STORES.CACHE, this.FFSCOUTER_KEY)
-      await db.delete(STORES.CACHE, this.CPR_TRACKER_KEY)
+      await db.delete(STORES.CACHE, this.TORN_STATS_KEY)
 
       // Also clear localStorage
       localStorage.removeItem(this.SETTINGS_KEY)
       localStorage.removeItem(this.FFSCOUTER_KEY)
-      localStorage.removeItem(this.CPR_TRACKER_KEY)
+      localStorage.removeItem(this.TORN_STATS_KEY)
     } catch (error) {
       console.error("[v0] Error clearing third-party settings:", error)
     }

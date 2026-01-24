@@ -2,7 +2,7 @@
 
 import type { Slot, Member } from "@/types/crime"
 import { useState } from "react"
-import { AlertTriangle, Plane, Globe, Hospital, Scale } from "lucide-react"
+import { AlertTriangle, Plane, Globe, Hospital, Scale, Users } from "lucide-react"
 import { ProgressRing } from "./progress-ring"
 import { getPositionPassRateColor } from "@/lib/crimes/colors"
 import { getWeightColor, getWeightBgColor } from "@/lib/crimes/role-weights"
@@ -294,16 +294,30 @@ export default function CrimeSlot({
           </div>
           <div className="space-y-0.5 max-h-32 overflow-y-auto">
             {recommendations.map((rec, recIdx) => (
-              <div key={recIdx} className="flex items-center justify-between py-0.5">
-                <a
-                  href={`https://www.torn.com/profiles.php?XID=${rec.memberId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent hover:underline font-bold"
-                >
-                  {rec.memberName}
-                </a>
-                <span className={`px-1.5 py-0.5 rounded border font-bold ${getPositionPassRateColor(rec.cpr)}`}>
+              <div key={recIdx} className="flex items-center justify-between py-0.5 gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {rec.isInOC && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Users size={12} className="text-orange-400 shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Currently in an OC</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  <a
+                    href={`https://www.torn.com/profiles.php?XID=${rec.memberId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`hover:underline font-bold truncate ${rec.isInOC ? "text-muted-foreground" : "text-accent"}`}
+                  >
+                    {rec.memberName}
+                  </a>
+                </div>
+                <span className={`px-1.5 py-0.5 rounded border font-bold shrink-0 ${getPositionPassRateColor(rec.cpr)}`}>
                   {rec.cpr}%
                 </span>
               </div>

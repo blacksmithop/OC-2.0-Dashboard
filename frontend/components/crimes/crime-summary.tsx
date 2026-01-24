@@ -1,12 +1,8 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
-import { ChevronDown, Send } from "lucide-react"
+import { useMemo, useState } from "react"
+import { ChevronDown } from "lucide-react"
 import ItemModal from "./item-modal"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { sendRequiredItemsWebhook } from "@/lib/integration/discord-webhook"
-import { useToast } from "@/hooks/use-toast"
-import { thirdPartySettingsManager } from "@/lib/settings/third-party-manager"
 
 interface Crime {
   id: number
@@ -36,28 +32,13 @@ interface Member {
   position: string
 }
 
-interface RequiredItem {
-  itemId: number
-  itemName: string
-  requiredBy: Array<{
-    memberId: number
-    memberName: string
-    crimeId: number
-    crimeName: string
-    position: string
-  }>
-}
-
 interface CrimeSummaryProps {
   crimes: Crime[]
   items: Map<number, any>
   minPassRate?: number
   onMinPassRateChange?: (value: number) => void
   membersNotInOC?: Member[]
-  allCrimes?: Crime[]
-  memberMap?: Map<number, Member>
-  showDiscordButtons?: boolean // Added prop to control Discord button visibility
-  showItemsNeeded?: boolean // Added prop to control Items Needed section visibility
+  showItemsNeeded?: boolean
 }
 
 export default function CrimeSummary({
@@ -66,30 +47,11 @@ export default function CrimeSummary({
   minPassRate,
   onMinPassRateChange,
   membersNotInOC,
-  allCrimes = [],
-  memberMap = new Map(),
-  showDiscordButtons = false, // Default to false so buttons only show when explicitly enabled
-  showItemsNeeded = false, // Default to false so Items Needed section only shows when explicitly enabled
+  showItemsNeeded = false,
 }: CrimeSummaryProps) {
   const [isItemsExpanded, setIsItemsExpanded] = useState(false)
   const [isItemsNeededExpanded, setIsItemsNeededExpanded] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
-  const { toast } = useToast()
-
-  const [discordEnabled, setDiscordEnabled] = useState(false)
-  const [discordWebhookUrl, setDiscordWebhookUrl] = useState("")
-  const [sendingWebhook, setSendingWebhook] = useState(false)
-
-  useEffect(() => {
-    const loadDiscordSettings = async () => {
-      const settings = await thirdPartySettingsManager.getSettings()
-      if (settings.discord) {
-        setDiscordEnabled(settings.discord.enabled || false)
-        setDiscordWebhookUrl(settings.discord.webhookUrl || "")
-      }
-    }
-    loadDiscordSettings()
-  }, [])
 
   const summary = useMemo(() => {
     let totalMoney = 0
@@ -221,89 +183,6 @@ export default function CrimeSummary({
       recruitingItemsNeeded: Array.from(recruitingItemsNeeded.values()),
     }
   }, [crimes, items])
-
-  const handleSendItemsToDiscord = async (type: "loaded" | "required") => {
-    if (!discordWebhookUrl || !discordEnabled) {
-      toast({
-        title: "Error",
-        description: "Discord webhook is not configured. Please configure it in Settings.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setSendingWebhook(true)
-
-    try {
-      const itemsMap = new Map<number, RequiredItem>()
-      const targetCrimes = allCrimes.filter((crime) => ["Planning", "Recruiting"].includes(crime.status))
-
-      targetCrimes.forEach((crime) => {
-        crime.slots?.forEach((slot) => {
-          if (slot.item_requirement) {
-            const isLoaded = slot.item_requirement.is_available
-            const shouldInclude = type === "loaded" ? isLoaded : !isLoaded
-
-            if (shouldInclude && slot.user) {
-              const itemId = slot.item_requirement.id
-              const item = items.get(itemId)
-              const itemName = item?.name || `Item ${itemId}`
-
-              if (!itemsMap.has(itemId)) {
-                itemsMap.set(itemId, {
-                  itemId,
-                  itemName,
-                  requiredBy: [],
-                })
-              }
-
-              itemsMap.get(itemId)!.requiredBy.push({
-                memberId: slot.user.id,
-                memberName: memberMap.get(slot.user.id)?.name || `ID: ${slot.user.id}`,
-                crimeId: crime.id,
-                crimeName: crime.name,
-                position: slot.position,
-              })
-            }
-          }
-        })
-      })
-
-      const itemsList = Array.from(itemsMap.values())
-
-      if (itemsList.length === 0) {
-        toast({
-          title: "No Items",
-          description:
-            type === "loaded" ? "No loaded items found in active OCs" : "No required items missing in active OCs",
-        })
-        return
-      }
-
-      const result = await sendRequiredItemsWebhook(discordWebhookUrl, itemsList, type)
-
-      if (result.success) {
-        toast({
-          title: "Success",
-          description: `Sent ${itemsList.length} item(s) to Discord`,
-        })
-      } else {
-        toast({
-          title: "Failed",
-          description: result.error || "Failed to send webhook",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred",
-        variant: "destructive",
-      })
-    } finally {
-      setSendingWebhook(false)
-    }
-  }
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat().format(num)
@@ -581,35 +460,6 @@ export default function CrimeSummary({
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Discord Buttons */}
-      {showDiscordButtons && discordEnabled && discordWebhookUrl && (
-        <div className="flex gap-2">
-          <Alert
-            className="flex-1 bg-green-600/10 border-green-600/30 cursor-pointer hover:bg-green-600/20 transition-colors"
-            onClick={() => handleSendItemsToDiscord("loaded")}
-          >
-            <Send className="text-green-400" />
-            <AlertDescription className="flex items-center justify-center">
-              <span className="text-green-400 font-semibold">
-                {sendingWebhook ? "Sending..." : "Send Loaned Items"}
-              </span>
-            </AlertDescription>
-          </Alert>
-
-          <Alert
-            className="flex-1 bg-red-600/10 border-red-600/30 cursor-pointer hover:bg-red-600/20 transition-colors"
-            onClick={() => handleSendItemsToDiscord("required")}
-          >
-            <Send className="text-red-400" />
-            <AlertDescription className="flex items-center justify-center">
-              <span className="text-red-400 font-semibold">
-                {sendingWebhook ? "Sending..." : "Send Required Items"}
-              </span>
-            </AlertDescription>
-          </Alert>
         </div>
       )}
     </div>

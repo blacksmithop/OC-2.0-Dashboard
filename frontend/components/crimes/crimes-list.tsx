@@ -6,7 +6,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import ItemModal from "./item-modal"
 import CrimeCard from "./crime-card"
 import CrimeGroupHeader from "./crime-group-header"
-import { getRoleWeights } from "@/lib/crimes/role-weights"
+import { getRoleWeights, type RoleWeightsData } from "@/lib/crimes/role-weights"
 import { STATUS_ORDER } from "@/constants/crime-statuses"
 
 interface CrimesListProps {
@@ -48,7 +48,7 @@ export default function CrimesList({
   const [visibleCrimes, setVisibleCrimes] = useState<{ [key: string]: number }>({})
   const observerRef = useRef<{ [key: string]: IntersectionObserver | null }>({})
   const loadMoreRef = useRef<{ [key: string]: HTMLDivElement | null }>({})
-  const [roleWeights, setRoleWeights] = useState<Awaited<ReturnType<typeof getRoleWeights>> | null>(null)
+  const [roleWeights, setRoleWeights] = useState<RoleWeightsData | null>(null)
   const membersNotInOCSet = useMemo(() => {
     const excludedPositions = ["Recruit"]
     const excludedStates = ["Hospital", "Jail", "Fallen"]

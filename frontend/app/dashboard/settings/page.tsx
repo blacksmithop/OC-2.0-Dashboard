@@ -15,7 +15,6 @@ export default function SettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [settings, setSettings] = useState<ThirdPartySettings>(defaultThirdPartySettings)
-  const [testingWebhook, setTestingWebhook] = useState(false)
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -31,45 +30,6 @@ export default function SettingsPage() {
 
     loadSettings()
   }, [router])
-
-  const handleTestWebhook = async () => {
-    if (!settings.discord.webhookUrl) {
-      toast({
-        title: "Error",
-        description: "Please enter a webhook URL first",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setTestingWebhook(true)
-
-    try {
-      const { sendTestWebhook } = await import("@/lib/integration/discord-webhook")
-      const result = await sendTestWebhook(settings.discord.webhookUrl)
-
-      if (result.success) {
-        toast({
-          title: "Success",
-          description: "Test message sent successfully! Check your Discord channel.",
-        })
-      } else {
-        toast({
-          title: "Failed",
-          description: result.error || "Failed to send webhook. Please check your URL.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred",
-        variant: "destructive",
-      })
-    } finally {
-      setTestingWebhook(false)
-    }
-  }
 
   const handleSave = async () => {
     try {
@@ -219,48 +179,51 @@ export default function SettingsPage() {
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-foreground">CPR Tracker</h3>
+                      <h3 className="font-semibold text-foreground">TornStats</h3>
                       <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">Optional</span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">
-                      Recommend members for open OC roles based on CPR (provided by abhinavkm)
+                      Fetch CPR data if present on TornStats
                     </p>
                     <a
-                      href="https://ufd.abhinavkm.com"
+                      href="https://www.tornstats.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
                     >
-                      https://ufd.abhinavkm.com
+                      https://www.tornstats.com
                     </a>
                   </div>
                   <input
                     type="checkbox"
-                    checked={settings.cprTracker.enabled}
+                    checked={settings.tornStats.enabled}
                     onChange={(e) =>
                       setSettings((prev) => ({
                         ...prev,
-                        cprTracker: { ...prev.cprTracker, enabled: e.target.checked },
+                        tornStats: { ...prev.tornStats, enabled: e.target.checked },
                       }))
                     }
                     className="mt-1 h-5 w-5 rounded border-border bg-background cursor-pointer"
                   />
                 </div>
-                {settings.cprTracker.enabled && (
+                {settings.tornStats.enabled && (
                   <div className="mt-3 pt-3 border-t border-border">
-                    <label className="block text-sm font-medium text-foreground mb-2">Public API Key</label>
+                    <label className="block text-sm font-medium text-foreground mb-2">TornStats API Key</label>
                     <input
                       type="password"
-                      value={settings.cprTracker.apiKey}
+                      value={settings.tornStats.apiKey}
                       onChange={(e) =>
                         setSettings((prev) => ({
                           ...prev,
-                          cprTracker: { ...prev.cprTracker, apiKey: e.target.value },
+                          tornStats: { ...prev.tornStats, apiKey: e.target.value },
                         }))
                       }
-                      placeholder="Enter CPR Tracker public API key"
+                      placeholder="Enter TornStats API key"
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Get your API key from TornStats settings page
+                    </p>
                   </div>
                 )}
               </div>
@@ -298,57 +261,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="border border-border rounded-lg p-4 bg-card/50">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-foreground">Discord Webhook</h3>
-                      <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">Optional</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">Send OC notifications to your Discord channel</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.discord.enabled}
-                    onChange={(e) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        discord: { ...prev.discord, enabled: e.target.checked },
-                      }))
-                    }
-                    className="mt-1 h-5 w-5 rounded border-border bg-background cursor-pointer"
-                  />
-                </div>
-                {settings.discord.enabled && (
-                  <div className="mt-3 pt-3 border-t border-border space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">Webhook URL</label>
-                      <input
-                        type="password"
-                        value={settings.discord.webhookUrl}
-                        onChange={(e) =>
-                          setSettings((prev) => ({
-                            ...prev,
-                            discord: { ...prev.discord, webhookUrl: e.target.value },
-                          }))
-                        }
-                        placeholder="https://discord.com/api/webhooks/..."
-                        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Get your webhook URL from Discord: Server Settings → Integrations → Webhooks
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleTestWebhook}
-                      disabled={testingWebhook || !settings.discord.webhookUrl}
-                      className="w-full px-3 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/40 rounded-lg hover:bg-blue-500/30 disabled:opacity-50 transition-colors font-semibold"
-                    >
-                      {testingWebhook ? "Sending Test..." : "Send Test Message"}
-                    </button>
-                  </div>
-                )}
-              </div>
+              
             </div>
 
             <div className="mt-6 pt-6 border-t border-border">

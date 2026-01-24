@@ -9,7 +9,7 @@ import CrimeTimestamps from "./crime-timestamps"
 import CrimeCost from "./crime-cost"
 import { canReloadIndividualCrimes } from "@/lib/api-scopes"
 import { getSimulatorUrl } from "@/lib/crimes/simulator-urls"
-import { getRoleWeight, shouldAlertLowCPR } from "@/lib/crimes/role-weights"
+import { getRoleWeight, shouldAlertLowCPR, type RoleWeightsData } from "@/lib/crimes/role-weights"
 import { getSuccessPrediction, SUPPORTED_SCENARIOS, type SuccessPrediction } from "@/lib/crimes/success-prediction"
 import { getDifficultyColor, getPassRateColor } from "@/lib/crimes/colors"
 
@@ -23,7 +23,7 @@ interface CrimeCardProps {
   isReloading: boolean
   minPassRate: number
   factionId: number | null
-  roleWeights: Awaited<ReturnType<typeof import("@/lib/crimes/role-weights").getRoleWeights>> | null
+  roleWeights: RoleWeightsData | null
   membersNotInOCSet: Set<number>
   cprTrackerData: any
   cprTrackerEnabled: boolean
@@ -214,7 +214,9 @@ export default function CrimeCard({
         <p className="text-xs text-muted-foreground mb-1 font-bold uppercase">Positions:</p>
         <div className="space-y-1">
           {crime.slots.map((slot, idx) => {
-            const roleWeight = showRoleWeights ? getRoleWeight(crime.name, slot.position) : null
+            // Count occurrences of this position name before this slot for indexed lookup
+            const positionOccurrence = crime.slots.slice(0, idx).filter(s => s.position === slot.position).length
+            const roleWeight = showRoleWeights && roleWeights ? getRoleWeight(roleWeights, crime.name, slot.position, positionOccurrence) : null
             const isHighRiskRole =
               roleWeight && slot.user && slot.checkpoint_pass_rate !== undefined
                 ? shouldAlertLowCPR(slot.checkpoint_pass_rate, roleWeight, minPassRate)

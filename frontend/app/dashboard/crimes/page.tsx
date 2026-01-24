@@ -122,16 +122,14 @@ export default function CrimesPage() {
   }, [searchParams])
 
   useEffect(() => {
-    const loadFactionId = async () => {
-      if (factionId) {
-        const apiKey = await apiKeyManager.getApiKey()
-        if (apiKey) {
-          loadCPRTrackerData(apiKey)
-        }
+    const loadTornStatsData = async () => {
+      const apiKey = await apiKeyManager.getApiKey()
+      if (apiKey) {
+        loadCPRTrackerData(apiKey)
       }
     }
-    loadFactionId()
-  }, [factionId])
+    loadTornStatsData()
+  }, [])
 
   const loadFromStoredData = async (apiKey: string) => {
     console.log("[v0] Loading from stored data")
@@ -389,14 +387,14 @@ export default function CrimesPage() {
     }
   }
 
-  const loadCPRTrackerData = async (apiKey: string) => {
+  const loadCPRTrackerData = async (_apiKey: string) => {
     const settings = await thirdPartySettingsManager.getSettings()
 
-    setCprTrackerEnabled(settings.cprTracker?.enabled || false)
+    setCprTrackerEnabled(settings.tornStats?.enabled || false)
 
-    if (settings.cprTracker?.enabled && settings.cprTracker?.apiKey && factionId) {
-      console.log("[v0] Loading CPR Tracker data")
-      const data = await getCPRTrackerData(settings.cprTracker.apiKey, factionId)
+    if (settings.tornStats?.enabled && settings.tornStats?.apiKey) {
+      console.log("[v0] Loading TornStats CPR data")
+      const data = await getCPRTrackerData(settings.tornStats.apiKey)
       setCprTrackerData(data)
       if (data) {
         console.log(`[v0] Loaded CPR data for ${Object.keys(data.members).length} members`)
