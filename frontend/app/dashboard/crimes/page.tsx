@@ -37,13 +37,7 @@ export default function CrimesPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [filteredMemberId, setFilteredMemberId] = useState<number | null>(null)
   const [factionId, setFactionId] = useState<number | null>(null)
-  const [minPassRate, setMinPassRate] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("minPassRate")
-      return saved ? Number.parseInt(saved) : 65
-    }
-    return 65
-  })
+  const [minPassRate, setMinPassRate] = useState(65)
   const [dateFilter, setDateFilter] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("crimesDateFilter")
@@ -66,6 +60,23 @@ export default function CrimesPage() {
     setCustomDateRange({ start, end })
   }
 
+  // Load minPassRate from IndexedDB on mount
+  useEffect(() => {
+    const loadMinPassRate = async () => {
+      const saved = await db.get<number>(STORES.SETTINGS, "minPassRate")
+      if (saved !== null) {
+        setMinPassRate(saved)
+      }
+    }
+    loadMinPassRate()
+  }, [])
+
+  // Save minPassRate to IndexedDB when it changes
+  const handleMinPassRateChange = async (value: number) => {
+    setMinPassRate(value)
+    await db.set(STORES.SETTINGS, "minPassRate", value)
+  }
+
   useEffect(() => {
     const initializePage = async () => {
       const apiKey = await apiKeyManager.getApiKey()
@@ -74,7 +85,6 @@ export default function CrimesPage() {
         return
       }
 
-      console.log("[v0] Initial data fetch triggered")
       loadFromStoredData(apiKey)
 
       loadHistoricalCrimes()
@@ -614,12 +624,9 @@ export default function CrimesPage() {
 
           <CrimeSummary
             crimes={dateFilteredCrimes}
-            members={members}
             items={items}
             minPassRate={minPassRate}
-            setMinPassRate={setMinPassRate}
-            cprTrackerData={cprTrackerData}
-            cprTrackerEnabled={cprTrackerEnabled}
+            onMinPassRateChange={handleMinPassRateChange}
             membersNotInOC={membersNotInOC}
             showItemsNeeded={true}
           />
