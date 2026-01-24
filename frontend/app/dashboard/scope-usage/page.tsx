@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { handleFullLogout } from "@/lib/logout-handler"
 import { getScenarioInfo } from "@/lib/crimes/scenarios"
-import { crimeApiCache } from "@/lib/cache/crime-api-cache"
+
 import { db, STORES } from "@/lib/db/indexeddb"
 import { apiKeyManager } from "@/lib/auth/api-key-manager"
 import ScopeUsageHeader from "@/components/scope-usage/scope-usage-header"
@@ -78,26 +78,17 @@ export default function ScopeUsagePage() {
   const fetchCrimeNews = async (
     factionId: string,
     to?: number,
-    skipCache = false,
   ): Promise<Record<string, { news: string; timestamp: number }>> => {
     const apiKey = await apiKeyManager.getApiKey()
     if (!apiKey) throw new Error("No API key found")
 
-    if (!skipCache && to) {
-      const cacheKey = `crimenews_to_${to}`
-      const cachedData = crimeApiCache.get(cacheKey)
-      if (cachedData) {
-        console.log(`[v0] Crime news API cache HIT for timestamp: ${to}`)
-        return cachedData
-      }
-    }
-
-    let url = `https://api.torn.com/faction/${factionId}?selections=crimenews&striptags=true&comment=oc_dashboard_crimenews`
+    // Build URL - always include striptags=false to get full HTML for parsing
+    let url = `https://api.torn.com/faction/${factionId}?selections=crimenews&comment=oc_dashboard_crimenews`
     if (to) {
       url += `&to=${to}`
     }
 
-    console.log(`[v0] Fetching crime news from API${to ? ` (to=${to})` : " (fresh)"}`)
+    console.log(`[v0] Fetching crime news from API${to ? ` with to=${to}` : " (latest)"}`)
     const response = await fetch(url, {
       headers: {
         Authorization: `ApiKey ${apiKey}`,
@@ -116,12 +107,7 @@ export default function ScopeUsagePage() {
     }
 
     const crimenews = data.crimenews || {}
-
-    if (to) {
-      const cacheKey = `crimenews_to_${to}`
-      crimeApiCache.set(cacheKey, crimenews)
-      console.log(`[v0] Cached crime news response for timestamp: ${to}`)
-    }
+    console.log(`[v0] API returned ${Object.keys(crimenews).length} crimenews entries`)
 
     return crimenews
   }
@@ -178,12 +164,21 @@ export default function ScopeUsagePage() {
         description: "Starting scope usage fetch...",
       })
 
-      console.log("[v0] Fetching latest crime news (fresh, not cached)")
-      const rawNews = await fetchCrimeNews(factionId, undefined, true)
+      console.log("[v0] Fetching latest crime news")
+      const rawNews = await fetchCrimeNews(factionId)
       requestCount++
 
       if (rawNews && Object.keys(rawNews).length > 0) {
+        // Find oldest timestamp from ALL crimenews entries (not just scope usage)
+        let oldestTimestampInBatch = Number.MAX_SAFE_INTEGER
+        
         for (const [id, data] of Object.entries(rawNews)) {
+          // Track the oldest timestamp from all entries
+          if (data.timestamp < oldestTimestampInBatch) {
+            oldestTimestampInBatch = data.timestamp
+          }
+          
+          // Only parse and store scope usage entries
           if (!seenIds.has(id)) {
             seenIds.add(id)
             const parsed = parseScopeUsage(id, data.timestamp, data.news)
@@ -194,17 +189,22 @@ export default function ScopeUsagePage() {
         }
 
         allEntries.sort((a, b) => b.timestamp - a.timestamp)
-
-        if (allEntries.length > 0) {
-          const oldestInBatch = allEntries[allEntries.length - 1]
-          lastOldestId = `${oldestInBatch.timestamp}-${oldestInBatch.userId}`
-          toTimestamp = oldestInBatch.timestamp
+        
+        // Use the oldest timestamp from ALL crimenews for pagination
+        if (oldestTimestampInBatch < Number.MAX_SAFE_INTEGER) {
+          toTimestamp = oldestTimestampInBatch - 1  // Subtract 1 to get older entries
+          console.log(`[v0] First batch: ${allEntries.length} scope usage entries, oldest crimenews timestamp: ${oldestTimestampInBatch}, next to=${toTimestamp}`)
         }
 
         setFetchProgress({ current: allEntries.length, max: maxFetchCount })
       }
 
-      while (allEntries.length < maxFetchCount && toTimestamp) {
+      // Calculate max retries as 1/4 of total backfill count
+      const maxRetries = Math.floor(maxFetchCount / 4)
+      let retryCount = 0
+      const ONE_DAY = 86400 // seconds
+
+      while (allEntries.length < maxFetchCount && toTimestamp && retryCount < maxRetries) {
         if (requestCount >= 30) {
           toast({
             title: "Rate Limit",
@@ -214,25 +214,35 @@ export default function ScopeUsagePage() {
           requestCount = 0
         }
 
-        console.log(`[v0] Fetching crime news with to=${toTimestamp} (${requestCount + 1}/30)`)
-        const rawNews = await fetchCrimeNews(factionId, toTimestamp, false)
+        console.log(`[v0] Fetching crime news with to=${toTimestamp} (request ${requestCount + 1}/30, retry ${retryCount}/${maxRetries})`)
+        const rawNews = await fetchCrimeNews(factionId, toTimestamp)
         requestCount++
 
+        // Check if empty response (no more data)
         if (!rawNews || Object.keys(rawNews).length === 0) {
-          consecutiveEmptyBatches++
-          console.log(`[v0] No crime news returned (empty batch ${consecutiveEmptyBatches}/3)`)
-          if (consecutiveEmptyBatches >= 3) {
-            console.log("[v0] No more crime news to fetch after 3 empty batches")
-            break
-          }
+          retryCount++
+          // Subtract 1 day and retry
+          toTimestamp = toTimestamp - ONE_DAY
+          console.log(`[v0] Empty response, subtracting 1 day. New to=${toTimestamp} (retry ${retryCount}/${maxRetries})`)
           await new Promise((resolve) => setTimeout(resolve, 2000))
           continue
         }
 
+        // Find oldest timestamp from ALL crimenews entries in this batch
+        let oldestTimestampInBatch = Number.MAX_SAFE_INTEGER
+        let newEntriesCount = 0
+        
         const batch: ScopeUsageEntry[] = []
         for (const [id, data] of Object.entries(rawNews)) {
+          // Track the oldest timestamp from all entries
+          if (data.timestamp < oldestTimestampInBatch) {
+            oldestTimestampInBatch = data.timestamp
+          }
+          
+          // Only parse scope usage entries we haven't seen
           if (!seenIds.has(id)) {
             seenIds.add(id)
+            newEntriesCount++
             const parsed = parseScopeUsage(id, data.timestamp, data.news)
             if (parsed) {
               batch.push(parsed)
@@ -240,37 +250,24 @@ export default function ScopeUsagePage() {
           }
         }
 
-        if (batch.length === 0) {
-          consecutiveEmptyBatches++
-          console.log(`[v0] No new unique entries in this batch (empty batch ${consecutiveEmptyBatches}/3)`)
-          if (consecutiveEmptyBatches >= 3) {
-            console.log("[v0] Stopping after 3 consecutive empty batches")
-            break
-          }
-          const timestamps = Object.values(rawNews).map((item) => item.timestamp)
-          if (timestamps.length > 0) {
-            toTimestamp = Math.min(...timestamps)
-            console.log(`[v0] Continuing with older timestamp: ${toTimestamp}`)
-          } else {
-            break
-          }
+        console.log(`[v0] Batch: ${Object.keys(rawNews).length} crimenews, ${newEntriesCount} new, ${batch.length} scope usage entries`)
+
+        // If we got no new entries at all (all duplicates), something is wrong - retry with older timestamp
+        if (newEntriesCount === 0) {
+          retryCount++
+          toTimestamp = toTimestamp - ONE_DAY
+          console.log(`[v0] All entries were duplicates, subtracting 1 day. New to=${toTimestamp} (retry ${retryCount}/${maxRetries})`)
           await new Promise((resolve) => setTimeout(resolve, 2000))
           continue
         }
 
-        consecutiveEmptyBatches = 0
+        // Reset retry count since we got new data
+        retryCount = 0
 
-        batch.sort((a, b) => b.timestamp - a.timestamp)
-
-        const oldestInBatch = batch[batch.length - 1]
-        const oldestId = `${oldestInBatch.timestamp}-${oldestInBatch.userId}`
-        if (lastOldestId === oldestId) {
-          console.log("[v0] Reached end of pagination (same oldest ID)")
-          break
+        if (batch.length > 0) {
+          batch.sort((a, b) => b.timestamp - a.timestamp)
+          allEntries.push(...batch)
         }
-
-        lastOldestId = oldestId
-        allEntries.push(...batch)
 
         setFetchProgress({ current: allEntries.length, max: maxFetchCount })
 
@@ -281,7 +278,14 @@ export default function ScopeUsagePage() {
           })
         }
 
-        toTimestamp = oldestInBatch.timestamp
+        // Use oldest timestamp from ALL crimenews for next request
+        if (oldestTimestampInBatch < Number.MAX_SAFE_INTEGER) {
+          toTimestamp = oldestTimestampInBatch - 1
+          console.log(`[v0] Next fetch will use to=${toTimestamp}`)
+        } else {
+          console.log("[v0] No valid timestamps found, stopping")
+          break
+        }
 
         await new Promise((resolve) => setTimeout(resolve, 2000))
 
@@ -289,6 +293,10 @@ export default function ScopeUsagePage() {
           console.log("[v0] Reached max fetch count")
           break
         }
+      }
+
+      if (retryCount >= maxRetries) {
+        console.log(`[v0] Reached max retry count (${maxRetries}), stopping backfill`)
       }
 
       const finalEntries = allEntries.slice(0, maxFetchCount)
