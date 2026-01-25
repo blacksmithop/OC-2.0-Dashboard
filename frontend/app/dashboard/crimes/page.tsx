@@ -38,13 +38,6 @@ export default function CrimesPage() {
   const [filteredMemberId, setFilteredMemberId] = useState<number | null>(null)
   const [factionId, setFactionId] = useState<number | null>(null)
   const [minPassRate, setMinPassRate] = useState(65)
-  const [dateFilter, setDateFilter] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("crimesDateFilter")
-      return saved ? Number.parseInt(saved) : 0
-    }
-    return 0
-  })
   const [historicalCrimes, setHistoricalCrimes] = useState<Crime[]>([])
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null)
@@ -53,12 +46,67 @@ export default function CrimesPage() {
   const [cprTrackerEnabled, setCprTrackerEnabled] = useState(false)
   const [memberMap, setMemberMap] = useState<Map<number, Member>>(new Map())
   const [customDateRange, setCustomDateRange] = useState<{ start: Date; end: Date } | null>(null)
-  const [membersNotInOC, setMembersNotInOC] = useState<Member[]>([]) // Declare the missing variable
-  const [usernameFilter, setUsernameFilter] = useState("") // Added username search state
+  const [savedDateRange, setSavedDateRange] = useState<{ start: number; end: number } | null>(null)
+  const [membersNotInOC, setMembersNotInOC] = useState<Member[]>([])
+  const [usernameFilter, setUsernameFilter] = useState("")
+  const [minDate, setMinDate] = useState<Date | null>(null)
+  const [maxDate, setMaxDate] = useState<Date | null>(null)
 
-  const handleDateRangeChange = (start: Date, end: Date) => {
+  // Load saved date range from IndexedDB
+  useEffect(() => {
+    const loadSavedDateRange = async () => {
+      const saved = await db.get<{ start: number; end: number }>(STORES.SETTINGS, "crimesDateRange")
+      if (saved) {
+        setSavedDateRange(saved)
+        setCustomDateRange({
+          start: new Date(saved.start),
+          end: new Date(saved.end),
+        })
+      }
+    }
+    loadSavedDateRange()
+  }, [])
+
+  const handleDateRangeChange = async (start: Date, end: Date) => {
     setCustomDateRange({ start, end })
+    // Save to IndexedDB
+    const rangeToSave = { start: start.getTime(), end: end.getTime() }
+    setSavedDateRange(rangeToSave)
+    await db.set(STORES.SETTINGS, "crimesDateRange", rangeToSave)
   }
+
+  const handleClearDateFilter = async () => {
+    // Clear saved date range
+    setSavedDateRange(null)
+    await db.delete(STORES.SETTINGS, "crimesDateRange")
+    // Reset to full range
+    if (minDate && maxDate) {
+      const start = new Date(minDate)
+      const end = new Date(maxDate)
+      start.setHours(0, 0, 0, 0)
+      end.setHours(23, 59, 59, 999)
+      setCustomDateRange({ start, end })
+    }
+  }
+
+  // Check if date filter is active (different from full range)
+  const isDateFiltered = useMemo(() => {
+    if (!savedDateRange || !minDate || !maxDate) return false
+    const fullRangeStart = new Date(minDate)
+    const fullRangeEnd = new Date(maxDate)
+    fullRangeStart.setHours(0, 0, 0, 0)
+    fullRangeEnd.setHours(23, 59, 59, 999)
+    
+    const savedStart = new Date(savedDateRange.start)
+    const savedEnd = new Date(savedDateRange.end)
+    
+    // Check if saved range is different from full range (with 1 day tolerance)
+    const startDiff = Math.abs(savedStart.getTime() - fullRangeStart.getTime())
+    const endDiff = Math.abs(savedEnd.getTime() - fullRangeEnd.getTime())
+    const ONE_DAY = 24 * 60 * 60 * 1000
+    
+    return startDiff > ONE_DAY || endDiff > ONE_DAY
+  }, [savedDateRange, minDate, maxDate])
 
   // Load minPassRate from IndexedDB on mount
   useEffect(() => {
@@ -262,6 +310,22 @@ export default function CrimesPage() {
       const membersNotInOCData = getMembersNotInOC(members, allCrimes)
       setMembersNotInOC(membersNotInOCData)
 
+      const timestamps = allCrimes.map((crime) => crime.created_at * 1000)
+      const calculatedMinDate = new Date(Math.min(...timestamps))
+      const calculatedMaxDate = new Date(Math.max(...timestamps))
+
+      setMinDate(calculatedMinDate)
+      setMaxDate(calculatedMaxDate)
+
+      console.log("[v0] Date range calculated from crimes:", {
+        crimesCount: allCrimes.length,
+        minTimestamp: Math.min(...timestamps),
+        maxTimestamp: Math.max(...timestamps),
+        minDate: calculatedMinDate.toISOString(),
+        maxDate: calculatedMaxDate.toISOString(),
+        latestCrimeId: allCrimes.find((c) => c.created_at * 1000 === Math.max(...timestamps))?.id,
+      })
+
       if (!refreshing && !isBackgroundRefresh) {
         toast({
           title: "Success",
@@ -421,32 +485,6 @@ export default function CrimesPage() {
     return filtered
   }, [crimes, filteredMemberId, usernameFilter, members])
 
-  const { minDate, maxDate } = useMemo(() => {
-    if (crimes.length === 0) {
-      const now = new Date()
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-      return { minDate: thirtyDaysAgo, maxDate: now }
-    }
-
-    const timestamps = crimes.map((crime) => crime.created_at * 1000)
-    const calculatedMinDate = new Date(Math.min(...timestamps))
-    const calculatedMaxDate = new Date(Math.max(...timestamps))
-
-    console.log("[v0] Date range calculated from crimes:", {
-      crimesCount: crimes.length,
-      minTimestamp: Math.min(...timestamps),
-      maxTimestamp: Math.max(...timestamps),
-      minDate: calculatedMinDate.toISOString(),
-      maxDate: calculatedMaxDate.toISOString(),
-      latestCrimeId: crimes.find((c) => c.created_at * 1000 === Math.max(...timestamps))?.id,
-    })
-
-    return {
-      minDate: calculatedMinDate,
-      maxDate: calculatedMaxDate,
-    }
-  }, [crimes])
-
   const initialStartDate = useMemo(() => {
     if (customDateRange?.start && isValid(customDateRange.start)) {
       return customDateRange.start
@@ -481,19 +519,15 @@ export default function CrimesPage() {
   }, [filteredCrimes, customDateRange])
 
   useEffect(() => {
-    if (crimes.length > 0) {
+    // Only set default date range if no saved range exists
+    if (crimes.length > 0 && !savedDateRange) {
       const start = new Date(minDate)
       const end = new Date(maxDate)
       start.setHours(0, 0, 0, 0)
       end.setHours(23, 59, 59, 999)
-      console.log("[v0] Setting date range:", {
-        start: start.toISOString(),
-        end: end.toISOString(),
-        crimesCount: crimes.length,
-      })
       setCustomDateRange({ start, end })
     }
-  }, [crimes.length, minDate, maxDate])
+  }, [crimes.length, minDate, maxDate, savedDateRange])
 
   const handleClearMemberFilter = () => {
     setFilteredMemberId(null)
@@ -618,6 +652,8 @@ export default function CrimesPage() {
             startDate={initialStartDate}
             endDate={initialEndDate}
             onDateRangeChange={handleDateRangeChange}
+            onClear={handleClearDateFilter}
+            isFiltered={isDateFiltered}
           />
 
           <CrimeSummary
