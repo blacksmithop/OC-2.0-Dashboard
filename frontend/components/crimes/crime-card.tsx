@@ -56,7 +56,8 @@ export default function CrimeCard({
   const totalSlots = crime.slots.length
   const canReloadCrimes = canReloadIndividualCrimes()
   const canReloadThisCrime = !["Successful", "Failed", "Expired"].includes(crime.status)
-  const simulatorUrl = getSimulatorUrl(crime.name)
+  const isPlanning = crime.status === "Planning"
+  const simulatorUrl = getSimulatorUrl(crime.name, crime.slots, isPlanning)
   const showSimulator = ["Recruiting", "Planning"].includes(crime.status)
   const showRoleWeights = ["Recruiting", "Planning"].includes(crime.status) && roleWeights
   const showPredictButton =

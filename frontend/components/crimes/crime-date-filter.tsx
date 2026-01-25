@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, X } from "lucide-react"
 import { format, isValid, startOfDay, endOfDay } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -14,9 +14,11 @@ interface CrimeDateFilterProps {
   startDate: Date
   endDate: Date
   onDateRangeChange: (start: Date, end: Date) => void
+  onClear?: () => void
+  isFiltered?: boolean
 }
 
-export function CrimeDateFilter({ minDate, maxDate, startDate, endDate, onDateRangeChange }: CrimeDateFilterProps) {
+export function CrimeDateFilter({ minDate, maxDate, startDate, endDate, onDateRangeChange, onClear, isFiltered }: CrimeDateFilterProps) {
   const [startOpen, setStartOpen] = useState(false)
   const [endOpen, setEndOpen] = useState(false)
   const [startMonth, setStartMonth] = useState<Date | undefined>()
@@ -60,9 +62,30 @@ export function CrimeDateFilter({ minDate, maxDate, startDate, endDate, onDateRa
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4">
+    <div className={cn(
+      "bg-card border rounded-lg p-4",
+      isFiltered ? "border-primary/50" : "border-border"
+    )}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold">Date Range Filter</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">Date Range Filter</h3>
+          {isFiltered && (
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded font-medium">
+              Custom
+            </span>
+          )}
+        </div>
+        {isFiltered && onClear && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClear}
+            className="text-xs h-7 px-2 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20"
+          >
+            <X size={14} className="mr-1" />
+            Clear Filter
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
