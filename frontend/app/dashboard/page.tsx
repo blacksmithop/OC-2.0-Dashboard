@@ -46,6 +46,7 @@ export default function Dashboard() {
   const [hasArmoryScope, setHasArmoryScope] = useState(true)
   const [hasFundsScope, setHasFundsScope] = useState(true)
   const [hasMedicalScope, setHasMedicalScope] = useState(true)
+  const [hasTornStatsApiKey, setHasTornStatsApiKey] = useState(false) // Declare setHasTornStatsApiKey
 
   const allCrimes = useMemo(() => {
     const crimeMap = new Map<number, Crime>()
@@ -305,6 +306,7 @@ export default function Dashboard() {
             hasArmoryScope={hasArmoryScope}
             hasFundsScope={hasFundsScope}
             hasMedicalScope={hasMedicalScope}
+            hasTornStatsApiKey={hasTornStatsApiKey}
           />
         </div>
       </main>

@@ -5,6 +5,13 @@ const MEMBERS_CACHE_KEY = "factionMembersCache"
 const MEMBERS_CACHE_EXPIRY_KEY = "factionMembersCacheExpiry"
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
+// In-memory cache for quick synchronous access
+let inMemoryMembersCache: Map<number, FactionMember> | null = null
+
+export function getCachedMembers(): Map<number, FactionMember> | null {
+  return inMemoryMembersCache
+}
+
 export async function getMembersFromCache(): Promise<Map<number, FactionMember>> {
   try {
     const cached = await db.get(STORES.CACHE, MEMBERS_CACHE_KEY)
@@ -64,9 +71,10 @@ export async function fetchAndCacheMembers(apiKey: string): Promise<Map<number, 
 
     await db.set(STORES.CACHE, MEMBERS_CACHE_KEY, membersMap, CACHE_DURATION)
     await db.set(STORES.CACHE, MEMBERS_CACHE_EXPIRY_KEY, (Date.now() + CACHE_DURATION).toString())
-    console.log("[v0] Cached members data for 5 minutes")
 
-    return new Map(Object.entries(membersMap).map(([key, value]) => [Number.parseInt(key), value]))
+    const resultMap = new Map(Object.entries(membersMap).map(([key, value]) => [Number.parseInt(key), value]))
+    inMemoryMembersCache = resultMap
+    return resultMap
   } catch (error) {
     console.error("[v0] Error fetching members:", error)
     const cachedData = await getMembersFromCache()

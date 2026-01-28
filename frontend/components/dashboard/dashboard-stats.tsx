@@ -3,7 +3,7 @@
 import type React from "react"
 
 import Link from "next/link"
-import { Users, Shield, Package, DollarSign, FileText, Heart } from "lucide-react"
+import { Users, Shield, Package, DollarSign, FileText, Heart, Target } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface DashboardStatsProps {
@@ -93,6 +93,36 @@ export function DashboardStats({
         </div>
         <div className="text-3xl font-bold text-accent mb-1">{crimeCount}</div>
         <p className="text-xs text-muted-foreground">Active and completed crimes</p>
+      </Link>
+
+      <Link
+        href="/dashboard/cpr"
+        className={`bg-card border rounded-lg p-4 transition-all text-left group block ${
+          !historicalFetchComplete
+            ? "pointer-events-none opacity-40 border-border/50"
+            : "border-border hover:border-purple-500 cursor-pointer"
+        }`}
+        onClick={(e) => {
+          if (!historicalFetchComplete) {
+            handleDisabledClick(e, "Historical data is still loading...")
+          }
+        }}
+      >
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 rounded-lg border bg-purple-500/20 border-purple-500/40">
+            <Target size={20} className="text-purple-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold transition-colors text-foreground group-hover:text-purple-500">
+              CPR Dashboard
+            </h2>
+            <p className="text-xs text-muted-foreground">Checkpoint pass rates</p>
+          </div>
+        </div>
+        <div className="text-3xl font-bold mb-1 text-purple-500">
+          <Target size={32} />
+        </div>
+        <p className="text-xs text-muted-foreground">CPR distribution by crime</p>
       </Link>
 
       <Link

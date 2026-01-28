@@ -2,11 +2,12 @@
 
 import type { Slot, Member } from "@/types/crime"
 import { useState } from "react"
-import { AlertTriangle, Plane, Globe, Hospital, Scale, Users } from "lucide-react"
+import { AlertTriangle, Plane, Globe, Hospital, Scale, Users, UserCheck } from "lucide-react"
 import { ProgressRing } from "./progress-ring"
 import { getPositionPassRateColor } from "@/lib/crimes/colors"
 import { getWeightColor, getWeightBgColor } from "@/lib/crimes/role-weights"
 import { getRecommendedMembers, type MemberRecommendation, type CPRTrackerData } from "@/lib/integration/cpr-tracker"
+import { getRecommendedMembersFromCPR, type MemberCPREntry } from "@/lib/crimes/cpr-aggregator"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 interface CrimeSlotProps {
