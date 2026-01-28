@@ -16,6 +16,7 @@ import { handleFullLogout } from "@/lib/logout-handler"
 import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 import type { Crime, Member } from "@/types/crime"
 import { getCPRTrackerData, type CPRTrackerData } from "@/lib/integration/cpr-tracker"
+import { updateCPRDataInBackground } from "@/lib/crimes/cpr-aggregator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { CrimeDateFilter } from "@/components/crimes/crime-date-filter"
 import { getMembersNotInOC } from "@/lib/crimes/members-not-in-oc" // Import the missing function
@@ -309,6 +310,15 @@ export default function CrimesPage() {
 
       const membersNotInOCData = getMembersNotInOC(members, allCrimes)
       setMembersNotInOC(membersNotInOCData)
+
+      // Update CPR data in the background
+      if (membersData.size > 0 && allCrimes.length > 0) {
+        const memberNamesMap = new Map<number, string>()
+        for (const [id, member] of membersData) {
+          memberNamesMap.set(id, member.name)
+        }
+        updateCPRDataInBackground(allCrimes, memberNamesMap)
+      }
 
       const timestamps = allCrimes.map((crime) => crime.created_at * 1000)
       const calculatedMinDate = new Date(Math.min(...timestamps))
