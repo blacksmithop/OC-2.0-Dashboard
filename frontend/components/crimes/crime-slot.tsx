@@ -20,6 +20,7 @@ interface CrimeSlotProps {
   items: Map<number, any>
   onItemClick: (item: any) => void
   minPassRate: number
+  roleMinCPR?: number // Per-role min CPR from CPR settings
   roleWeight: number | null
   isHighRiskRole: boolean
   membersNotInOCSet: Set<number>
@@ -38,6 +39,7 @@ export default function CrimeSlot({
   items,
   onItemClick,
   minPassRate,
+  roleMinCPR,
   roleWeight,
   isHighRiskRole,
   membersNotInOCSet,
@@ -45,29 +47,43 @@ export default function CrimeSlot({
   cprTrackerEnabled,
 }: CrimeSlotProps) {
   const [recommendations, setRecommendations] = useState<MemberRecommendation[]>([])
+  const [cprRecommendations, setCprRecommendations] = useState<MemberCPREntry[]>([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
   const [showRecommendations, setShowRecommendations] = useState(false)
 
-  const isAtRisk = slot.user && slot.checkpoint_pass_rate !== undefined && slot.checkpoint_pass_rate < minPassRate
+  // Use roleMinCPR if available, otherwise fall back to global minPassRate
+  const effectiveMinCPR = roleMinCPR ?? minPassRate
+  const isAtRisk = slot.user && slot.checkpoint_pass_rate !== undefined && slot.checkpoint_pass_rate < effectiveMinCPR
 
   const isOpenRecruitingSlot = crimeStatus === "Recruiting" && !slot.user
   const isMissingItemPlanning =
     crimeStatus === "Planning" && slot.user && slot.item_requirement && !slot.item_requirement.is_available
 
-  const handleRecommendClick = () => {
-    if (loadingRecommendations || !cprTrackerData) return
+  const handleRecommendClick = async () => {
+    if (loadingRecommendations) return
 
     setLoadingRecommendations(true)
 
     try {
-      const recs = getRecommendedMembers(cprTrackerData, crimeName, slot.position, membersNotInOCSet, minPassRate)
+      // First try to get recommendations from aggregated CPR data
+      const cprRecs = await getRecommendedMembersFromCPR(
+        crimeName,
+        slot.position,
+        membersNotInOCSet,
+        effectiveMinCPR
+      )
+      setCprRecommendations(cprRecs)
 
-      const recsWithNames = recs.map((rec) => ({
-        ...rec,
-        memberName: members.find((m) => m.id === rec.memberId)?.name || `ID: ${rec.memberId}`,
-      }))
+      // Also get TornStats recommendations if available
+      if (cprTrackerData) {
+        const recs = getRecommendedMembers(cprTrackerData, crimeName, slot.position, membersNotInOCSet, effectiveMinCPR)
+        const recsWithNames = recs.map((rec) => ({
+          ...rec,
+          memberName: members.find((m) => m.id === rec.memberId)?.name || `ID: ${rec.memberId}`,
+        }))
+        setRecommendations(recsWithNames)
+      }
 
-      setRecommendations(recsWithNames)
       setShowRecommendations(true)
     } finally {
       setLoadingRecommendations(false)
@@ -118,7 +134,14 @@ export default function CrimeSlot({
                         <span className="text-orange-400 cursor-help">⚠️</span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Low CPR Participant</p>
+                        <div className="space-y-1">
+                          <p>Low CPR Participant</p>
+                          {roleMinCPR !== undefined && (
+                            <p className="text-xs text-muted-foreground">
+                              Role min: {roleMinCPR}% | Current: {slot.checkpoint_pass_rate}%
+                            </p>
+                          )}
+                        </div>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -132,7 +155,14 @@ export default function CrimeSlot({
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Low CPR in High Weightage Role</p>
+                        <div className="space-y-1">
+                          <p>Low CPR in High Weight Role</p>
+                          {roleWeight !== null && (
+                            <p className="text-xs text-muted-foreground">
+                              Weight: {roleWeight.toFixed(1)}% | Recommend min {effectiveMinCPR}%+
+                            </p>
+                          )}
+                        </div>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -207,13 +237,31 @@ export default function CrimeSlot({
                 >
                   {memberMap[slot.user.id] || slot.user.name || "Unknown"}
                 </a>
-                {slot.checkpoint_pass_rate !== undefined && (
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-xs font-bold border shrink-0 ${getPositionPassRateColor(slot.checkpoint_pass_rate)}`}
-                  >
-                    {slot.checkpoint_pass_rate}%
-                  </span>
-                )}
+{slot.checkpoint_pass_rate !== undefined && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-xs font-bold border shrink-0 ${getPositionPassRateColor(slot.checkpoint_pass_rate)}`}
+                        >
+                          {slot.checkpoint_pass_rate}%
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="space-y-1">
+                          <p>Checkpoint Pass Rate: {slot.checkpoint_pass_rate}%</p>
+                          {roleMinCPR !== undefined && (
+                            <p className="text-xs text-muted-foreground">
+                              {roleMinCPR !== minPassRate 
+                                ? `Role min: ${roleMinCPR}% (configured)`
+                                : `Recommended: ${effectiveMinCPR}%+`}
+                            </p>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  )}
                 {crimeStatus === "Planning" && slot.user?.progress !== undefined && (
                   <div
                     className="flex items-center gap-1 shrink-0"
@@ -249,7 +297,7 @@ export default function CrimeSlot({
             ) : (
               <>
                 <span className="text-muted-foreground">Open</span>
-                {isOpenRecruitingSlot && cprTrackerEnabled && cprTrackerData && (
+                {isOpenRecruitingSlot && (
                   <button
                     onClick={handleRecommendClick}
                     disabled={loadingRecommendations}
@@ -284,51 +332,92 @@ export default function CrimeSlot({
         </div>
       </div>
 
-      {showRecommendations && recommendations.length > 0 && (
+      {showRecommendations && (cprRecommendations.length > 0 || recommendations.length > 0) && (
         <div className="ml-4 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs">
           <div className="flex items-center justify-between mb-1">
-            <p className="font-bold text-blue-400">Recommended Members ({recommendations.length})</p>
+            <p className="font-bold text-blue-400">
+              Recommended Members ({cprRecommendations.length || recommendations.length})
+              {roleMinCPR && roleMinCPR !== minPassRate && (
+                <span className="text-muted-foreground font-normal ml-1">(Role min: {roleMinCPR}%)</span>
+              )}
+            </p>
             <button onClick={() => setShowRecommendations(false)} className="text-blue-400 hover:text-blue-300">
               ✕
             </button>
           </div>
           <div className="space-y-0.5 max-h-32 overflow-y-auto">
-            {recommendations.map((rec, recIdx) => (
-              <div key={recIdx} className="flex items-center justify-between py-0.5 gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  {rec.isInOC && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Users size={12} className="text-orange-400 shrink-0" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Currently in an OC</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                  <a
-                    href={`https://www.torn.com/profiles.php?XID=${rec.memberId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`hover:underline font-bold truncate ${rec.isInOC ? "text-muted-foreground" : "text-accent"}`}
-                  >
-                    {rec.memberName}
-                  </a>
+            {/* Prefer CPR recommendations from aggregated data */}
+            {cprRecommendations.length > 0 ? (
+              cprRecommendations.map((rec) => {
+                const isInOC = !membersNotInOCSet.has(rec.memberId)
+                return (
+                  <div key={rec.memberId} className="flex items-center justify-between py-0.5 gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {isInOC && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Users size={12} className="text-orange-400 shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Currently in an OC</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      <a
+                        href={`https://www.torn.com/profiles.php?XID=${rec.memberId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`hover:underline font-bold truncate ${isInOC ? "text-muted-foreground" : "text-accent"}`}
+                      >
+                        {rec.memberName}
+                      </a>
+                    </div>
+                    <span className={`px-1.5 py-0.5 rounded border font-bold shrink-0 ${getPositionPassRateColor(rec.cpr)}`}>
+                      {rec.cpr}%
+                    </span>
+                  </div>
+                )
+              })
+            ) : (
+              recommendations.map((rec, recIdx) => (
+                <div key={recIdx} className="flex items-center justify-between py-0.5 gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {rec.isInOC && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Users size={12} className="text-orange-400 shrink-0" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Currently in an OC</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    <a
+                      href={`https://www.torn.com/profiles.php?XID=${rec.memberId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`hover:underline font-bold truncate ${rec.isInOC ? "text-muted-foreground" : "text-accent"}`}
+                    >
+                      {rec.memberName}
+                    </a>
+                  </div>
+                  <span className={`px-1.5 py-0.5 rounded border font-bold shrink-0 ${getPositionPassRateColor(rec.cpr)}`}>
+                    {rec.cpr}%
+                  </span>
                 </div>
-                <span className={`px-1.5 py-0.5 rounded border font-bold shrink-0 ${getPositionPassRateColor(rec.cpr)}`}>
-                  {rec.cpr}%
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}
-      {showRecommendations && recommendations.length === 0 && (
+      {showRecommendations && cprRecommendations.length === 0 && recommendations.length === 0 && (
         <div className="ml-4 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs">
           <div className="flex items-center justify-between">
-            <p className="text-muted-foreground">No members meet the minimum CPR ({minPassRate}%)</p>
+            <p className="text-muted-foreground">No members meet the minimum CPR ({effectiveMinCPR}%)</p>
             <button onClick={() => setShowRecommendations(false)} className="text-blue-400 hover:text-blue-300">
               ✕
             </button>

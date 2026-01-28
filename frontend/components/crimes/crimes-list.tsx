@@ -8,6 +8,7 @@ import CrimeCard from "./crime-card"
 import CrimeGroupHeader from "./crime-group-header"
 import { getRoleWeights, type RoleWeightsData } from "@/lib/crimes/role-weights"
 import { STATUS_ORDER } from "@/constants/crime-statuses"
+import { getMinCPRSettings, type MinCPRSettings } from "@/lib/crimes/cpr-aggregator"
 
 interface CrimesListProps {
   crimes: Crime[]
@@ -49,6 +50,7 @@ export default function CrimesList({
   const observerRef = useRef<{ [key: string]: IntersectionObserver | null }>({})
   const loadMoreRef = useRef<{ [key: string]: HTMLDivElement | null }>({})
   const [roleWeights, setRoleWeights] = useState<RoleWeightsData | null>(null)
+  const [minCPRSettings, setMinCPRSettings] = useState<MinCPRSettings>({})
   const membersNotInOCSet = useMemo(() => {
     const excludedPositions = ["Recruit"]
     const excludedStates = ["Hospital", "Jail", "Fallen"]
@@ -149,6 +151,7 @@ export default function CrimesList({
 
   useEffect(() => {
     getRoleWeights().then(setRoleWeights)
+    getMinCPRSettings().then(setMinCPRSettings)
   }, [])
 
   const memberMap = useMemo(() => {
@@ -303,6 +306,7 @@ export default function CrimesList({
                     cprTrackerEnabled={cprTrackerEnabled}
                     currentTime={currentTime}
                     canReload={true}
+                    minCPRSettings={minCPRSettings}
                   />
                 ))}
                 {hasMoreCrimes && (

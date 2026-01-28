@@ -12,6 +12,7 @@ import { getSimulatorUrl } from "@/lib/crimes/simulator-urls"
 import { getRoleWeight, shouldAlertLowCPR, type RoleWeightsData } from "@/lib/crimes/role-weights"
 import { getSuccessPrediction, SUPPORTED_SCENARIOS, type SuccessPrediction } from "@/lib/crimes/success-prediction"
 import { getDifficultyColor, getPassRateColor } from "@/lib/crimes/colors"
+import { type MinCPRSettings, DEFAULT_MIN_CPR } from "@/lib/crimes/cpr-aggregator"
 
 interface CrimeCardProps {
   crime: Crime
@@ -29,6 +30,7 @@ interface CrimeCardProps {
   cprTrackerEnabled: boolean
   currentTime: number
   canReload: boolean
+  minCPRSettings?: MinCPRSettings
 }
 
 export default function CrimeCard({
@@ -47,6 +49,7 @@ export default function CrimeCard({
   cprTrackerEnabled,
   currentTime,
   canReload,
+  minCPRSettings,
 }: CrimeCardProps) {
   const [prediction, setPrediction] = useState<SuccessPrediction | null>(null)
   const [isPredicting, setIsPredicting] = useState(false)
@@ -218,9 +221,13 @@ export default function CrimeCard({
             // Count occurrences of this position name before this slot for indexed lookup
             const positionOccurrence = crime.slots.slice(0, idx).filter(s => s.position === slot.position).length
             const roleWeight = showRoleWeights && roleWeights ? getRoleWeight(roleWeights, crime.name, slot.position, positionOccurrence) : null
+            
+            // Get per-role min CPR from settings, fallback to global default
+            const roleMinCPR = minCPRSettings?.[crime.name]?.[slot.position] ?? DEFAULT_MIN_CPR
+            
             const isHighRiskRole =
               roleWeight && slot.user && slot.checkpoint_pass_rate !== undefined
-                ? shouldAlertLowCPR(slot.checkpoint_pass_rate, roleWeight, minPassRate)
+                ? shouldAlertLowCPR(slot.checkpoint_pass_rate, roleWeight, roleMinCPR)
                 : false
 
             return (
@@ -236,6 +243,7 @@ export default function CrimeCard({
                 items={items}
                 onItemClick={onItemClick}
                 minPassRate={minPassRate}
+                roleMinCPR={roleMinCPR}
                 roleWeight={roleWeight}
                 isHighRiskRole={isHighRiskRole}
                 membersNotInOCSet={membersNotInOCSet}

@@ -38,7 +38,7 @@ export default function CrimesPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [filteredMemberId, setFilteredMemberId] = useState<number | null>(null)
   const [factionId, setFactionId] = useState<number | null>(null)
-  const [minPassRate, setMinPassRate] = useState(65)
+  const [minPassRate, setMinPassRate] = useState(70)
   const [historicalCrimes, setHistoricalCrimes] = useState<Crime[]>([])
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null)
