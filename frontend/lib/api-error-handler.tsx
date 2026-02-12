@@ -1,6 +1,7 @@
 import { toast } from "@/hooks/use-toast"
 import { buildApiKeyUrl, getSelectedScopes } from "@/lib/api-scopes"
 import { handleFullLogout } from "@/lib/logout-handler"
+import { logError, logInfo } from "@/lib/logging/error-logger"
 
 export interface ApiErrorResponse {
   error: {
@@ -80,6 +81,7 @@ export async function handleApiError(
 
     if (errorData.error?.code === 2 && errorData.error.error === "Incorrect key") {
       console.error("[v0] API key has been revoked - logging out")
+      logInfo("api-error-handler", "API key revoked - forcing logout", { endpoint })
       
       handleFullLogout()
       
@@ -115,6 +117,7 @@ export async function handleApiError(
         isRequired: scopeInfo?.required,
         errorMessage: errorData.error.error,
       })
+      logError("api-error-handler", new Error(`API Access Error Code 16: ${scope}`), { endpoint, scope, isRequired: scopeInfo?.required, apiErrorCode: 16 })
 
       if (showToast) {
         toast({
@@ -173,6 +176,7 @@ export async function handleApiError(
         scope,
         errorMessage: errorData.error.error,
       })
+      logError("api-error-handler", new Error(`API Access Error Code 2: ${scope}`), { endpoint, scope, apiErrorCode: 2 })
 
       if (showToast) {
         toast({
@@ -201,6 +205,7 @@ export async function handleApiError(
     // Other API errors
     const errorMessage = errorData.error?.error || "API request failed"
     console.error(`[v0] API Error (Code ${errorData.error?.code}):`, errorMessage)
+    logError("api-error-handler", new Error(errorMessage), { endpoint, apiErrorCode: errorData.error?.code })
 
     if (showToast) {
       toast({

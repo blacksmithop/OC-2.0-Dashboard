@@ -13,6 +13,7 @@ export interface ThirdPartySettings {
   }
   yata: {
     enabled: boolean
+    apiKey: string
   }
 }
 
@@ -29,6 +30,7 @@ export const defaultThirdPartySettings: ThirdPartySettings = {
   },
   yata: {
     enabled: false,
+    apiKey: "",
   },
 }
 
@@ -36,6 +38,7 @@ class ThirdPartySettingsManager {
   private readonly SETTINGS_KEY = "thirdPartySettings"
   private readonly FFSCOUTER_KEY = "FFSCOUTER_API_KEY"
   private readonly TORN_STATS_KEY = "TORN_STATS_API_KEY"
+  private readonly YATA_KEY = "YATA_API_KEY"
 
   async getSettings(): Promise<ThirdPartySettings> {
     try {
@@ -83,6 +86,12 @@ class ThirdPartySettingsManager {
         await db.delete(STORES.CACHE, this.TORN_STATS_KEY)
       }
 
+      if (settings.yata.enabled && settings.yata.apiKey) {
+        await db.set(STORES.CACHE, this.YATA_KEY, settings.yata.apiKey)
+      } else {
+        await db.delete(STORES.CACHE, this.YATA_KEY)
+      }
+
       // Also save to localStorage for backwards compatibility
       localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings))
       if (settings.ffScouter.enabled && settings.ffScouter.apiKey) {
@@ -94,6 +103,11 @@ class ThirdPartySettingsManager {
         localStorage.setItem(this.TORN_STATS_KEY, settings.tornStats.apiKey)
       } else {
         localStorage.removeItem(this.TORN_STATS_KEY)
+      }
+      if (settings.yata.enabled && settings.yata.apiKey) {
+        localStorage.setItem(this.YATA_KEY, settings.yata.apiKey)
+      } else {
+        localStorage.removeItem(this.YATA_KEY)
       }
     } catch (error) {
       console.error("[v0] Error saving third-party settings:", error)
@@ -127,16 +141,31 @@ class ThirdPartySettingsManager {
     }
   }
 
+  async getYataApiKey(): Promise<string | null> {
+    try {
+      const key = await db.get<string>(STORES.CACHE, this.YATA_KEY)
+      if (key) return key
+
+      // Fallback to localStorage
+      return localStorage.getItem(this.YATA_KEY)
+    } catch (error) {
+      console.error("[v0] Error getting Yata API key:", error)
+      return localStorage.getItem(this.YATA_KEY)
+    }
+  }
+
   async clearSettings(): Promise<void> {
     try {
       await db.delete(STORES.CACHE, this.SETTINGS_KEY)
       await db.delete(STORES.CACHE, this.FFSCOUTER_KEY)
       await db.delete(STORES.CACHE, this.TORN_STATS_KEY)
+      await db.delete(STORES.CACHE, this.YATA_KEY)
 
       // Also clear localStorage
       localStorage.removeItem(this.SETTINGS_KEY)
       localStorage.removeItem(this.FFSCOUTER_KEY)
       localStorage.removeItem(this.TORN_STATS_KEY)
+      localStorage.removeItem(this.YATA_KEY)
     } catch (error) {
       console.error("[v0] Error clearing third-party settings:", error)
     }

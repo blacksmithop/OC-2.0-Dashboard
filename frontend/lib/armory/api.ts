@@ -1,6 +1,7 @@
 import { crimeApiCache } from "@/lib/cache/crime-api-cache"
 import { apiKeyManager } from "@/lib/auth/api-key-manager"
 import { db, STORES } from "@/lib/db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 import type { ArmoryApiResponse } from "./types"
 
 /**
@@ -88,6 +89,7 @@ export async function loadCachedArmoryNews(): Promise<any[]> {
     }
   } catch (error) {
     console.error("[v0] Error loading cached armory news:", error)
+    logError("armory/api", error, { action: "loadCachedArmoryNews" })
   }
   return []
 }
@@ -100,6 +102,7 @@ export async function saveCachedArmoryNews(news: any[]): Promise<void> {
     await db.set(STORES.CACHE, "armoryNews", news)
   } catch (error) {
     console.error("[v0] Error saving armory news to cache:", error)
+    logError("armory/api", error, { action: "saveCachedArmoryNews", count: news.length })
   }
 }
 
@@ -122,5 +125,6 @@ export async function clearArmoryCache(): Promise<void> {
     console.log("[v0] Cleared all armory cache data from IndexedDB")
   } catch (error) {
     console.error("[v0] Error clearing armory cache:", error)
+    logError("armory/api", error, { action: "clearArmoryCache" })
   }
 }

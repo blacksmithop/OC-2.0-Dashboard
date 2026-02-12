@@ -236,6 +236,31 @@ class IndexedDBManager {
   }
 
   /**
+   * Get all entries from a store (returns raw entries with key, value, timestamp etc.)
+   */
+  async getAll(storeName: string): Promise<Array<{ key: string; value: any; timestamp?: number; expiry?: number }>> {
+    try {
+      const db = await this.init()
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, "readonly")
+        const store = transaction.objectStore(storeName)
+        const request = store.getAll()
+
+        request.onsuccess = () => {
+          resolve(request.result || [])
+        }
+        request.onerror = () => {
+          console.error("[v0] IndexedDB getAll error:", request.error)
+          reject(request.error)
+        }
+      })
+    } catch (error) {
+      console.error("[v0] Error getting all from IndexedDB:", error)
+      return []
+    }
+  }
+
+  /**
    * Delete keys matching a prefix
    */
   async deleteByPrefix(storeName: string, prefix: string): Promise<void> {

@@ -1,3 +1,5 @@
+import { logError } from "@/lib/logging/error-logger"
+
 export interface YataMemberData {
   id: number
   name: string
@@ -40,6 +42,7 @@ export async function fetchYataMembers(apiKey: string): Promise<Map<number, Yata
       }
     } catch (err) {
       console.error("[v0] Error parsing YATA cache:", err)
+      logError("yata", err, { action: "parseCache" })
     }
   }
 
@@ -50,6 +53,7 @@ export async function fetchYataMembers(apiKey: string): Promise<Map<number, Yata
 
     if (!response.ok) {
       console.error(`[v0] YATA API returned status ${response.status}`)
+      logError("yata", new Error(`YATA API HTTP ${response.status}`), { action: "fetchMembers", status: response.status })
       return new Map()
     }
 
@@ -57,6 +61,7 @@ export async function fetchYataMembers(apiKey: string): Promise<Map<number, Yata
 
     if (!result.members) {
       console.error("[v0] YATA API returned no members data")
+      logError("yata", new Error("YATA API returned no members data"), { action: "fetchMembers" })
       return new Map()
     }
 

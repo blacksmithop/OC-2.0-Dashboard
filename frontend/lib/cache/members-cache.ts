@@ -1,4 +1,5 @@
 import { db, STORES } from "../db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 import type { FactionMember } from "./members-cache"
 
 const MEMBERS_CACHE_KEY = "factionMembersCache"
@@ -22,6 +23,7 @@ export async function getMembersFromCache(): Promise<Map<number, FactionMember>>
     }
   } catch (error) {
     console.error("[v0] Error reading members cache:", error)
+    logError("cache/members", error, { action: "getMembersFromCache" })
   }
 
   return new Map()
@@ -77,6 +79,7 @@ export async function fetchAndCacheMembers(apiKey: string): Promise<Map<number, 
     return resultMap
   } catch (error) {
     console.error("[v0] Error fetching members:", error)
+    logError("cache/members", error, { action: "fetchAndCacheMembers" })
     const cachedData = await getMembersFromCache()
     if (cachedData.size > 0) {
       console.log("[v0] Falling back to cached members data")

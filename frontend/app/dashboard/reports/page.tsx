@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { logError } from "@/lib/logging/error-logger"
 import { RefreshCw, LogOut, MoreVertical, Info, Play, Loader2, ChevronDown, ArrowLeft } from "lucide-react"
 import { fetchAndCacheItems } from "@/lib/cache/items-cache"
 import type { TornItem } from "@/lib/cache/items-cache"

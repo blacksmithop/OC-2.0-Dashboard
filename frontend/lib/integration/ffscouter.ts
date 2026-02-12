@@ -1,3 +1,5 @@
+import { logError } from "@/lib/logging/error-logger"
+
 interface FFScouterResult {
   player_id: number
   fair_fight: number | null
@@ -43,6 +45,7 @@ export async function fetchFFScouterStats(memberIds: number[]): Promise<Map<numb
       const response = await fetch(url)
       if (!response.ok) {
         console.error("[v0] FF Scouter API error:", response.status)
+        logError("integration/ffscouter", new Error(`FF Scouter API HTTP ${response.status}`), { status: response.status })
         continue
       }
 
@@ -61,6 +64,7 @@ export async function fetchFFScouterStats(memberIds: number[]): Promise<Map<numb
     return results
   } catch (error) {
     console.error("[v0] Failed to fetch FF Scouter data:", error)
+    logError("integration/ffscouter", error, { action: "fetchFFScouterData" })
     return new Map()
   }
 }

@@ -8,6 +8,7 @@ import { fetchAndCacheItems } from "@/lib/cache/items-cache"
 import type { TornItem } from "@/lib/cache/items-cache"
 import { fetchAndCacheMembers, type FactionMember } from "@/lib/cache/members-cache"
 import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
+import { logError } from "@/lib/logging/error-logger"
 import ItemModal from "@/components/crimes/item-modal"
 import { handleFullLogout } from "@/lib/logout-handler"
 import ArmoryHeader from "@/components/armory/armory-header"
@@ -67,6 +68,7 @@ export default function ArmoryPage() {
         await fetchAndCacheFactionBasic(apiKey)
       } catch (error) {
         console.error("[v0] Error fetching faction basic data:", error)
+        logError("page/armory", error, { action: "fetchFactionBasic" })
       }
 
       const savedMaxFetch = await loadMaxFetchCount()
@@ -86,6 +88,7 @@ export default function ArmoryPage() {
       setItems(itemsData)
     } catch (error) {
       console.error("[v0] Error loading items:", error)
+      logError("page/armory", error, { action: "loadItems" })
     }
   }
 
@@ -99,6 +102,7 @@ export default function ArmoryPage() {
       setMembers(membersList)
     } catch (error) {
       console.error("[v0] Error loading members:", error)
+      logError("page/armory", error, { action: "loadMembers" })
     }
   }
 
@@ -168,6 +172,7 @@ export default function ArmoryPage() {
       })
     } catch (error) {
       console.error("[v0] Error fetching armory news:", error)
+      logError("page/armory", error, { action: "fetchHistoricalArmoryNews" })
       if (error instanceof Error && error.message === "API_ACCESS_DENIED") {
         toast({
           title: "API Access Denied",

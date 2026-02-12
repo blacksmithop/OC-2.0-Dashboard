@@ -1,4 +1,5 @@
 import { db, STORES } from "../db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 
 export interface TornItem {
   id: number
@@ -48,6 +49,7 @@ export async function getItemsFromCache(): Promise<Map<number, TornItem>> {
     }
   } catch (error) {
     console.error("[v0] Error reading items cache:", error)
+    logError("cache/items", error, { action: "getItemsFromCache" })
   }
 
   return new Map()
@@ -110,6 +112,7 @@ export async function fetchAndCacheItems(apiKey: string): Promise<Map<number, To
     return new Map(Object.entries(itemsMap).map(([key, value]) => [Number.parseInt(key), value]))
   } catch (error) {
     console.error("[v0] Error fetching items:", error)
+    logError("cache/items", error, { action: "fetchAndCacheItems" })
     if (error instanceof Error && error.message.includes("does not have access")) {
       throw error
     }

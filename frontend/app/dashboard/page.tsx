@@ -16,6 +16,7 @@ import { canAccessArmory, canAccessFunds, canAccessMedical } from "@/lib/api-sco
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
 import { DashboardFooter } from "@/components/dashboard/dashboard-footer"
+import { logError } from "@/lib/logging/error-logger"
 import { apiKeyManager } from "@/lib/auth/api-key-manager"
 import { db, STORES } from "@/lib/db/indexeddb"
 
@@ -75,6 +76,7 @@ export default function Dashboard() {
           console.log(`[v0] Loaded ${cached.length} historical crimes from IndexedDB`)
         } catch (err) {
           console.error("[v0] Error loading cached crimes:", err)
+          logError("page/dashboard", err, { action: "loadCachedCrimes" })
         }
       }
 
@@ -240,6 +242,7 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error("[v0] Error fetching historical crimes:", err)
+      logError("page/dashboard", err, { action: "fetchHistoricalCrimes" })
       toast({
         title: "Error",
         description: "Failed to fetch historical crimes",

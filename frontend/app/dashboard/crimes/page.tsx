@@ -17,6 +17,7 @@ import { fetchAndCacheFactionBasic } from "@/lib/cache/faction-basic-cache"
 import type { Crime, Member } from "@/types/crime"
 import { getCPRTrackerData, type CPRTrackerData } from "@/lib/integration/cpr-tracker"
 import { updateCPRDataInBackground } from "@/lib/crimes/cpr-aggregator"
+import { logError } from "@/lib/logging/error-logger"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { CrimeDateFilter } from "@/components/crimes/crime-date-filter"
 import { getMembersNotInOC } from "@/lib/crimes/members-not-in-oc" // Import the missing function
@@ -213,6 +214,7 @@ export default function CrimesPage() {
         })
         .catch((e) => {
           console.error("[v0] Failed to load members:", e)
+          logError("page/crimes", e, { action: "loadMembers" })
         })
 
       const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
@@ -242,6 +244,7 @@ export default function CrimesPage() {
       }
     } catch (err) {
       console.error("[v0] Error loading from stored data:", err)
+      logError("page/crimes", err, { action: "loadStoredData" })
       fetchData(apiKey, false)
     }
   }

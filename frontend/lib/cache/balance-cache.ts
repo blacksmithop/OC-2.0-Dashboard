@@ -9,6 +9,7 @@ export interface FactionBalance {
 }
 
 import { db, STORES } from "../db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 
 const BALANCE_CACHE_KEY = "factionBalance"
 const BALANCE_CACHE_TIMESTAMP_KEY = "factionBalanceTimestamp"
@@ -38,6 +39,7 @@ export async function fetchAndCacheBalance(apiKey: string): Promise<FactionBalan
 
     if (!balanceRes.ok) {
       console.error("[v0] Balance API error:", balanceRes.status)
+      logError("cache/balance", new Error(`Balance API HTTP ${balanceRes.status}`), { status: balanceRes.status })
       // Return cached data if available, even if expired
       if (cachedData) {
         console.log("[v0] Falling back to cached balance data")
@@ -64,6 +66,7 @@ export async function fetchAndCacheBalance(apiKey: string): Promise<FactionBalan
     return null
   } catch (error) {
     console.error("[v0] Error fetching balance:", error)
+    logError("cache/balance", error, { action: "fetchAndCacheBalance" })
     // Return cached data if available
     const cachedData = await db.get<FactionBalance>(STORES.CACHE, BALANCE_CACHE_KEY)
     if (cachedData) {

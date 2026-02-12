@@ -1,4 +1,5 @@
 import { db, STORES } from "../db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 
 interface CachedCrimeResponse {
   data: any
@@ -31,6 +32,7 @@ export const crimeApiCache = {
       return cached.data
     } catch (e) {
       console.error("[v0] Failed to read from crime API cache:", e)
+      logError("cache/crime-api", e, { action: "get", cacheKey })
       return null
     }
   },
@@ -47,6 +49,7 @@ export const crimeApiCache = {
       await db.set(STORES.CACHE, `${CACHE_KEY_PREFIX}${cacheKey}`, cached, CACHE_DURATION)
     } catch (e) {
       console.error("[v0] Failed to write to crime API cache:", e)
+      logError("cache/crime-api", e, { action: "set", cacheKey })
     }
   },
 
@@ -59,6 +62,7 @@ export const crimeApiCache = {
       console.log("[v0] Cleared all crime API caches")
     } catch (e) {
       console.error("[v0] Failed to clear crime API cache:", e)
+      logError("cache/crime-api", e, { action: "clearAll" })
     }
   },
 

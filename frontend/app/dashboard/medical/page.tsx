@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { logError } from "@/lib/logging/error-logger"
 import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw, Heart, AlertTriangle, Settings, X } from "lucide-react"
 import { handleApiError, validateApiResponse } from "@/lib/api-error-handler"
 import { handleFullLogout } from "@/lib/logout-handler"
@@ -40,6 +41,7 @@ export default function MedicalPage() {
           setTempAlertSettings({ ...DEFAULT_MEDICAL_ALERTS, ...parsed })
         } catch (e) {
           console.error("[v0] Failed to parse medical alert settings:", e)
+      logError("page/medical", e, { action: "parseMedicalAlertSettings" })
         }
       }
 

@@ -1,4 +1,5 @@
 import { db, STORES } from "../db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 
 export interface FactionBasic {
   id: number
@@ -44,6 +45,7 @@ export async function fetchAndCacheFactionBasic(apiKey: string): Promise<Faction
       }
     } catch (e) {
       console.error("[v0] Failed to parse cached faction basic:", e)
+      logError("cache/faction-basic", e, { action: "getCachedFactionBasic" })
     }
   }
 

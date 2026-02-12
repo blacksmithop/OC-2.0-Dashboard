@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { logError } from "@/lib/logging/error-logger"
 import { LogOut, MoreVertical, ArrowLeft, Info, RotateCcw } from "lucide-react"
 import MemberList from "@/components/members/member-list"
 import { fetchAndCacheItems } from "@/lib/cache/items-cache"
@@ -235,6 +236,7 @@ export default function MembersPage() {
         console.log(`[v0] Loaded ${data.length} historical crimes for members page`)
       } catch (e) {
         console.error("[v0] Failed to parse historical crimes:", e)
+      logError("page/members", e, { action: "parseHistoricalCrimes" })
       }
     }
   }

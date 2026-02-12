@@ -1,4 +1,5 @@
 import { db, STORES } from "@/lib/db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 
 const CPR_CACHE_KEY = "tornStatsCPRData"
 const CPR_CACHE_TIMESTAMP_KEY = "tornStatsCPRTimestamp"
@@ -33,6 +34,7 @@ async function getCachedCPRData(): Promise<TornStatsCPRData | null> {
     return data || null
   } catch (error) {
     console.error("[v0] Error reading CPR cache:", error)
+    logError("integration/cpr-tracker", error, { action: "getCachedCPRData" })
     return null
   }
 }
@@ -43,6 +45,7 @@ async function setCachedCPRData(data: TornStatsCPRData): Promise<void> {
     await db.set(STORES.CACHE, CPR_CACHE_TIMESTAMP_KEY, Date.now())
   } catch (error) {
     console.error("[v0] Error caching CPR data:", error)
+    logError("integration/cpr-tracker", error, { action: "setCachedCPRData" })
   }
 }
 
@@ -64,6 +67,7 @@ export async function getTornStatsCPRData(apiKey: string, forceRefresh = false):
 
     if (!response.ok) {
       console.error(`[v0] TornStats API error: ${response.status}`)
+      logError("integration/cpr-tracker", new Error(`TornStats API HTTP ${response.status}`), { action: "getTornStatsCPR", status: response.status })
       return null
     }
 
@@ -71,6 +75,7 @@ export async function getTornStatsCPRData(apiKey: string, forceRefresh = false):
 
     if (!data.status) {
       console.error("[v0] TornStats API returned error:", data.message)
+      logError("integration/cpr-tracker", new Error(`TornStats API error: ${data.message}`), { action: "getTornStatsCPR", message: data.message })
       return null
     }
 
@@ -80,6 +85,7 @@ export async function getTornStatsCPRData(apiKey: string, forceRefresh = false):
     return data
   } catch (error) {
     console.error("[v0] Failed to fetch TornStats CPR data:", error)
+    logError("integration/cpr-tracker", error, { action: "getTornStatsCPR" })
     return null
   }
 }

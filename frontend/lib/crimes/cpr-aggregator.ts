@@ -1,4 +1,5 @@
 import { db, STORES } from "@/lib/db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 import type { Crime } from "@/types/crime"
 import type { TornStatsCPRData } from "@/lib/integration/cpr-tracker"
 
@@ -77,8 +78,9 @@ export async function getCachedCPRData(): Promise<AggregatedCPRData | null> {
     return data ? deserializeCPRData(data) : null
   } catch (error) {
     console.error("[v0] Error reading CPR cache:", error)
-    return null
+    logError("cpr-aggregator", error, { action: "getCachedCPRData" })
   }
+  return null
 }
 
 export async function saveCPRData(data: AggregatedCPRData): Promise<void> {
@@ -87,6 +89,7 @@ export async function saveCPRData(data: AggregatedCPRData): Promise<void> {
     await db.set(STORES.CACHE, CPR_CACHE_TIMESTAMP_KEY, Date.now())
   } catch (error) {
     console.error("[v0] Error caching CPR data:", error)
+    logError("cpr-aggregator", error, { action: "saveCPRData" })
   }
 }
 

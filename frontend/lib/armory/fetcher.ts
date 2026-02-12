@@ -1,6 +1,7 @@
 import type { ArmoryNewsItem, FetchProgress } from "./types"
 import { fetchArmoryNews } from "./api"
 import { parseArmoryNewsItems } from "./parser"
+import { logError } from "@/lib/logging/error-logger"
 
 export interface FetchOptions {
   maxCount: number
@@ -167,6 +168,7 @@ export async function fetchHistoricalArmoryNews(factionId: string, options: Fetc
     return finalNews
   } catch (error) {
     console.error("[v0] Error fetching armory news:", error)
+    logError("armory/fetcher", error, { action: "fetchHistoricalArmoryNews" })
     if (onError) {
       onError(error as Error)
     }

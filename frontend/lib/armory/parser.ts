@@ -1,4 +1,5 @@
 import type { ArmoryNewsItem } from "./types"
+import { logError } from "@/lib/logging/error-logger"
 
 // Regex patterns for parsing armory news
 const RETRIEVE_RE =
@@ -125,6 +126,7 @@ export function parseArmoryNews(uuid: string, timestamp: number, news: string): 
     return null
   } catch (error) {
     console.error("[v0] Error parsing armory news:", news, error)
+    logError("armory/parser", error, { action: "parseSingleArmoryNews", news })
     return null
   }
 }

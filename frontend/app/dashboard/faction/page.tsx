@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { useToast } from "@/hooks/use-toast"
+import { logError } from "@/lib/logging/error-logger"
 import { LogOut, MoreVertical, ArrowLeft, Users, Award, TrendingUp, Calendar, Crown, RotateCcw } from 'lucide-react'
 import { Card } from "@/components/ui/card"
 import { ResetConfirmationDialog } from "@/components/reset-confirmation-dialog"
@@ -48,6 +49,7 @@ export default function FactionPage() {
         setMembers(Array.from(membersData.values()).map(m => ({ id: m.id, name: m.name })))
       } catch (err) {
         console.error("[v0] Error loading members:", err)
+      logError("page/faction", err, { action: "loadMembers" })
       }
 
       if (!refreshing) {

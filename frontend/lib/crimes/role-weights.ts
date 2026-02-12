@@ -1,4 +1,5 @@
 import { db, STORES } from "@/lib/db/indexeddb"
+import { logError } from "@/lib/logging/error-logger"
 
 const WEIGHTS_CACHE_KEY = "roleWeights"
 const WEIGHTS_TIMESTAMP_KEY = "roleWeightsTimestamp"
@@ -36,6 +37,7 @@ async function getCachedWeights(): Promise<RoleWeightsData | null> {
     return data || null
   } catch (error) {
     console.error("[v0] Error reading weights cache:", error)
+    logError("crimes/role-weights", error, { action: "getCachedWeights" })
     return null
   }
 }
@@ -47,6 +49,7 @@ async function setCachedWeights(data: RoleWeightsData): Promise<void> {
     await db.set(STORES.CACHE, WEIGHTS_TIMESTAMP_KEY, Date.now())
   } catch (error) {
     console.error("[v0] Error caching weights:", error)
+    logError("crimes/role-weights", error, { action: "setCachedWeights" })
   }
 }
 
@@ -79,6 +82,7 @@ export async function getRoleWeights(): Promise<RoleWeightsData> {
     }
   } catch (error) {
     console.error("[v0] Failed to fetch role weights from API:", error)
+    logError("crimes/role-weights", error, { action: "getRoleWeights", api: "tornproxy.abhinavkm.com/weights" })
   }
 
   // Return empty object if fetch fails - only show weights for known roles
