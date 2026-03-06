@@ -1,242 +1,276 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
-import { logError } from "@/lib/logging/error-logger"
-import { RefreshCw, LogOut, MoreVertical, Info, Play, Loader2, ChevronDown, ArrowLeft } from "lucide-react"
-import { fetchAndCacheItems } from "@/lib/cache/items-cache"
-import type { TornItem } from "@/lib/cache/items-cache"
-import { VictoryPie } from "victory"
-import ItemModal from "@/components/crimes/item-modal"
-import { crimeApiCache } from "@/lib/cache/crime-api-cache"
-import { handleFullLogout } from "@/lib/logout-handler"
-import type { Crime } from "@/types/crime"
-import { filterCrimesByDateRange } from "@/lib/crimes/filters"
-import { formatCurrency } from "@/lib/crimes/formatters"
-import { getDifficultyColor } from "@/lib/crimes/colors"
-import { CRIME_METADATA } from "@/lib/crimes/metadata"
-import CrimeSuccessCharts from "@/components/crimes/crime-success-charts"
-import { apiKeyManager } from "@/lib/auth/api-key-manager"
-import { db, STORES } from "@/lib/db/indexeddb"
-import { isValid } from "date-fns"
-import { ReportDateFilter } from "@/components/reports/report-date-filter"
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { logError } from "@/lib/logging/error-logger";
+import {
+  RefreshCw,
+  LogOut,
+  MoreVertical,
+  Info,
+  Play,
+  Loader2,
+  ChevronDown,
+  ArrowLeft,
+} from "lucide-react";
+import { fetchAndCacheItems } from "@/lib/cache/items-cache";
+import type { TornItem } from "@/lib/cache/items-cache";
+import { VictoryPie } from "victory";
+import ItemModal from "@/components/crimes/item-modal";
+import { crimeApiCache } from "@/lib/cache/crime-api-cache";
+import { handleFullLogout } from "@/lib/logout-handler";
+import type { Crime } from "@/types/crime";
+import { filterCrimesByDateRange } from "@/lib/crimes/filters";
+import { formatCurrency } from "@/lib/crimes/formatters";
+import { getDifficultyColor } from "@/lib/crimes/colors";
+import { CRIME_METADATA } from "@/lib/crimes/metadata";
+import CrimeSuccessCharts from "@/components/crimes/crime-success-charts";
+import { apiKeyManager } from "@/lib/auth/api-key-manager";
+import { db, STORES } from "@/lib/db/indexeddb";
+import { isValid } from "date-fns";
+import { ReportDateFilter } from "@/components/reports/report-date-filter";
 
 export default function CrimeReportsPage() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [totalCrimes, setTotalCrimes] = useState(0)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [currentWeek, setCurrentWeek] = useState(0)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [crimes, setCrimes] = useState<Crime[]>([])
-  const [items, setItems] = useState<Map<number, TornItem>>(new Map())
-  const [selectedItem, setSelectedItem] = useState<any>(null)
-  const [expandedCrimes, setExpandedCrimes] = useState<Set<string>>(new Set())
-  const [historicalCrimes, setHistoricalCrimes] = useState<Crime[]>([])
-  const [currentCrimes, setCurrentCrimes] = useState<Crime[]>([])
-  const [statusFilter, setStatusFilter] = useState<string>("All")
-  const [difficultyFilter, setDifficultyFilter] = useState<string>("All")
-  const [sortBy, setSortBy] = useState<string>("Total")
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
-  const [dateFilter, setDateFilter] = useState<number>(0)
-  const [searchFilter, setSearchFilter] = useState<string>("")
-  const [customDateRange, setCustomDateRange] = useState<{ start: Date; end: Date } | null>(null)
-  const [datePreset, setDatePreset] = useState<string>("all")
+  const router = useRouter();
+  const { toast } = useToast();
+  const [totalCrimes, setTotalCrimes] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentWeek, setCurrentWeek] = useState(0);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [crimes, setCrimes] = useState<Crime[]>([]);
+  const [items, setItems] = useState<Map<number, TornItem>>(new Map());
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [expandedCrimes, setExpandedCrimes] = useState<Set<string>>(new Set());
+  const [historicalCrimes, setHistoricalCrimes] = useState<Crime[]>([]);
+  const [currentCrimes, setCurrentCrimes] = useState<Crime[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [difficultyFilter, setDifficultyFilter] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<string>("Total");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [dateFilter, setDateFilter] = useState<number>(0);
+  const [searchFilter, setSearchFilter] = useState<string>("");
+  const [customDateRange, setCustomDateRange] = useState<{
+    start: Date;
+    end: Date;
+  } | null>(null);
+  const [datePreset, setDatePreset] = useState<string>("all");
 
-  const WEEK_IN_SECONDS = 7 * 24 * 60 * 60
-  const REQUEST_DELAY = 2000
-  const REQUESTS_PER_BATCH = 30
-  const BATCH_SLEEP_TIME = 60000 // 1 minute
+  const WEEK_IN_SECONDS = 7 * 24 * 60 * 60;
+  const REQUEST_DELAY = 2000;
+  const REQUESTS_PER_BATCH = 30;
+  const BATCH_SLEEP_TIME = 60000; // 1 minute
 
   const allCrimes = useMemo(() => {
-    const crimeMap = new Map<number, Crime>()
+    const crimeMap = new Map<number, Crime>();
 
     historicalCrimes.forEach((crime) => {
-      crimeMap.set(crime.id, crime)
-    })
+      crimeMap.set(crime.id, crime);
+    });
 
     currentCrimes.forEach((crime) => {
-      crimeMap.set(crime.id, crime)
-    })
+      crimeMap.set(crime.id, crime);
+    });
 
-    const allCrimesArray = Array.from(crimeMap.values())
-    return filterCrimesByDateRange(allCrimesArray, dateFilter)
-  }, [historicalCrimes, currentCrimes, dateFilter])
+    const allCrimesArray = Array.from(crimeMap.values());
+    return filterCrimesByDateRange(allCrimesArray, dateFilter);
+  }, [historicalCrimes, currentCrimes, dateFilter]);
 
   useEffect(() => {
     const loadData = async () => {
-      const apiKey = await apiKeyManager.getApiKey()
+      const apiKey = await apiKeyManager.getApiKey();
       if (!apiKey) {
-        router.push("/")
-        return
+        router.push("/");
+        return;
       }
 
       try {
         const crimesRes = await fetch(
           "https://api.torn.com/v2/faction/crimes?striptags=true&comment=oc_dashboard_crimes",
           {
-            headers: { Authorization: `ApiKey ${apiKey}`, accept: "application/json" },
+            headers: {
+              Authorization: `ApiKey ${apiKey}`,
+              accept: "application/json",
+            },
           },
-        )
+        );
 
         if (crimesRes.ok) {
-          const crimesData = await crimesRes.json()
+          const crimesData = await crimesRes.json();
           if (crimesData.crimes) {
-            setCurrentCrimes(Object.values(crimesData.crimes))
+            setCurrentCrimes(Object.values(crimesData.crimes));
           }
         }
       } catch (e) {
-        console.error("[v0] Failed to fetch current crimes:", e)
+        console.error("[v0] Failed to fetch current crimes:", e);
       }
 
-      const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
+      const cached = await db.get<Crime[]>(
+        STORES.CACHE,
+        "factionHistoricalCrimes",
+      );
       if (cached) {
-        setHistoricalCrimes(cached)
-        console.log(`[v0] Loaded ${cached.length} historical crimes from IndexedDB (shared cache)`)
+        setHistoricalCrimes(cached);
+        console.log(
+          `[v0] Loaded ${cached.length} historical crimes from IndexedDB (shared cache)`,
+        );
 
         toast({
           title: "Data Loaded",
           description: `Loaded ${cached.length} historical crimes from cache`,
-        })
+        });
       }
 
       fetchAndCacheItems(apiKey).then((itemsData) => {
-        setItems(itemsData)
-      })
-    }
+        setItems(itemsData);
+      });
+    };
 
-    loadData()
+    loadData();
 
     const pollInterval = setInterval(async () => {
-      const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
+      const cached = await db.get<Crime[]>(
+        STORES.CACHE,
+        "factionHistoricalCrimes",
+      );
       if (cached && cached.length !== historicalCrimes.length) {
-        setHistoricalCrimes(cached)
-        console.log(`[v0] Updated to ${cached.length} historical crimes from IndexedDB`)
+        setHistoricalCrimes(cached);
+        console.log(
+          `[v0] Updated to ${cached.length} historical crimes from IndexedDB`,
+        );
       }
-    }, 3000)
+    }, 3000);
 
     return () => {
-      clearInterval(pollInterval)
-    }
-  }, [router])
+      clearInterval(pollInterval);
+    };
+  }, [router]);
 
   useEffect(() => {
-    setCrimes(allCrimes)
-    setTotalCrimes(allCrimes.length)
-  }, [allCrimes])
+    setCrimes(allCrimes);
+    setTotalCrimes(allCrimes.length);
+  }, [allCrimes]);
 
   const { minDate, maxDate } = useMemo(() => {
     if (!crimes || crimes.length === 0) {
       return {
         minDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
         maxDate: new Date(),
-      }
+      };
     }
 
-    const timestamps = crimes.map((c) => c.created_at * 1000)
-    const calculatedMinDate = new Date(Math.min(...timestamps))
-    const calculatedMaxDate = new Date(Math.max(...timestamps))
+    const timestamps = crimes.map((c) => c.created_at * 1000);
+    const calculatedMinDate = new Date(Math.min(...timestamps));
+    const calculatedMaxDate = new Date(Math.max(...timestamps));
 
     return {
       minDate: calculatedMinDate,
       maxDate: calculatedMaxDate,
-    }
-  }, [crimes])
+    };
+  }, [crimes]);
 
   const initialStartDate = useMemo(() => {
     if (customDateRange?.start && isValid(customDateRange.start)) {
-      return customDateRange.start
+      return customDateRange.start;
     }
-    return minDate
-  }, [customDateRange, minDate])
+    return minDate;
+  }, [customDateRange, minDate]);
 
   const initialEndDate = useMemo(() => {
     if (customDateRange?.end && isValid(customDateRange.end)) {
-      return customDateRange.end
+      return customDateRange.end;
     }
-    return maxDate
-  }, [customDateRange, maxDate])
+    return maxDate;
+  }, [customDateRange, maxDate]);
 
   const dateFilteredCrimes = useMemo(() => {
-    if (!customDateRange?.start || !customDateRange?.end || datePreset === "all") {
-      return allCrimes
+    if (
+      !customDateRange?.start ||
+      !customDateRange?.end ||
+      datePreset === "all"
+    ) {
+      return allCrimes;
     }
 
     return allCrimes.filter((crime) => {
-      const crimeDate = new Date(crime.created_at * 1000)
-      return crimeDate >= customDateRange.start && crimeDate <= customDateRange.end
-    })
-  }, [allCrimes, customDateRange, datePreset])
+      const crimeDate = new Date(crime.created_at * 1000);
+      return (
+        crimeDate >= customDateRange.start && crimeDate <= customDateRange.end
+      );
+    });
+  }, [allCrimes, customDateRange, datePreset]);
 
   const crimesFilteredByStatus = useMemo(() => {
     if (statusFilter === "All") {
-      return dateFilteredCrimes
+      return dateFilteredCrimes;
     }
     return dateFilteredCrimes.filter((crime) => {
-      if (statusFilter === "Successful") return crime.result === 1
-      if (statusFilter === "Failed") return crime.result === 0
-      if (statusFilter === "Planning") return crime.result === 2
-      if (statusFilter === "Recruiting") return crime.result === 3
-      if (statusFilter === "Expired") return crime.result === 4
-      return true
-    })
-  }, [dateFilteredCrimes, statusFilter])
+      if (statusFilter === "Successful") return crime.result === 1;
+      if (statusFilter === "Failed") return crime.result === 0;
+      if (statusFilter === "Planning") return crime.result === 2;
+      if (statusFilter === "Recruiting") return crime.result === 3;
+      if (statusFilter === "Expired") return crime.result === 4;
+      return true;
+    });
+  }, [dateFilteredCrimes, statusFilter]);
 
   const summary = useMemo(() => {
-    let totalMoney = 0
-    let totalRespect = 0
-    let totalItemValue = 0
-    let totalCost = 0
+    let totalMoney = 0;
+    let totalRespect = 0;
+    let totalItemValue = 0;
+    let totalCost = 0;
     const statusCounts = {
       Planning: 0,
       Recruiting: 0,
       Successful: 0,
       Failed: 0,
       Expired: 0,
-    }
-    const itemsGained = new Map<number, { item: any; quantity: number; totalValue: number }>()
+    };
+    const itemsGained = new Map<
+      number,
+      { item: any; quantity: number; totalValue: number }
+    >();
 
     crimesFilteredByStatus.forEach((crime) => {
-      const status = crime.status === "Failure" ? "Failed" : crime.status
+      const status = crime.status === "Failure" ? "Failed" : crime.status;
       if (status in statusCounts) {
-        statusCounts[status as keyof typeof statusCounts]++
+        statusCounts[status as keyof typeof statusCounts]++;
       }
 
       if (crime.status === "Successful" && crime.rewards) {
-        totalMoney += crime.rewards.money || 0
-        totalRespect += crime.rewards.respect || 0
+        totalMoney += crime.rewards.money || 0;
+        totalRespect += crime.rewards.respect || 0;
 
         if (crime.rewards.items && crime.rewards.items.length > 0) {
           crime.rewards.items.forEach((item) => {
-            const itemData = items.get(item.id)
+            const itemData = items.get(item.id);
             if (itemData && itemData.value?.market_price) {
-              const itemValue = itemData.value.market_price * item.quantity
-              totalItemValue += itemValue
+              const itemValue = itemData.value.market_price * item.quantity;
+              totalItemValue += itemValue;
 
               if (itemsGained.has(item.id)) {
-                const existing = itemsGained.get(item.id)!
-                existing.quantity += item.quantity
-                existing.totalValue += itemValue
+                const existing = itemsGained.get(item.id)!;
+                existing.quantity += item.quantity;
+                existing.totalValue += itemValue;
               } else {
                 itemsGained.set(item.id, {
                   item: itemData,
                   quantity: item.quantity,
                   totalValue: itemValue,
-                })
+                });
               }
             }
-          })
+          });
         }
       }
 
       if (crime.status === "Planning" && crime.cost) {
-        totalCost += crime.cost
+        totalCost += crime.cost;
       }
-    })
+    });
 
-    const totalValue = totalMoney + totalItemValue
+    const totalValue = totalMoney + totalItemValue;
 
     return {
       totalValue,
@@ -246,23 +280,23 @@ export default function CrimeReportsPage() {
       totalCost,
       statusCounts,
       itemsGained: Array.from(itemsGained.values()),
-    }
-  }, [crimesFilteredByStatus, items])
+    };
+  }, [crimesFilteredByStatus, items]);
 
   const crimeStats = useMemo(() => {
     const stats = new Map<
       string,
       {
-        successful: number
-        failed: number
-        planning: number
-        recruiting: number
-        expired: number
-        difficulty: number
-        totalPayout: number
-        totalRespect: number
+        successful: number;
+        failed: number;
+        planning: number;
+        recruiting: number;
+        expired: number;
+        difficulty: number;
+        totalPayout: number;
+        totalRespect: number;
       }
-    >()
+    >();
 
     crimesFilteredByStatus.forEach((crime) => {
       const existing = stats.get(crime.name) || {
@@ -274,26 +308,26 @@ export default function CrimeReportsPage() {
         difficulty: crime.difficulty || 0,
         totalPayout: 0,
         totalRespect: 0,
-      }
+      };
 
       if (crime.status === "Successful") {
-        existing.successful++
+        existing.successful++;
         if (crime.rewards) {
-          existing.totalPayout += crime.rewards.money || 0
-          existing.totalRespect += crime.rewards.respect || 0
+          existing.totalPayout += crime.rewards.money || 0;
+          existing.totalRespect += crime.rewards.respect || 0;
         }
       } else if (crime.status === "Failure" || crime.status === "Failed") {
-        existing.failed++
+        existing.failed++;
       } else if (crime.status === "Planning") {
-        existing.planning++
+        existing.planning++;
       } else if (crime.status === "Recruiting") {
-        existing.recruiting++
+        existing.recruiting++;
       } else if (crime.status === "Expired") {
-        existing.expired++
+        existing.expired++;
       }
 
-      stats.set(crime.name, existing)
-    })
+      stats.set(crime.name, existing);
+    });
 
     let filteredStats = Array.from(stats.entries()).map(([name, data]) => ({
       name,
@@ -305,211 +339,254 @@ export default function CrimeReportsPage() {
       difficulty: data.difficulty,
       totalPayout: data.totalPayout,
       totalRespect: data.totalRespect,
-      total: data.successful + data.failed + data.planning + data.recruiting + data.expired,
+      total:
+        data.successful +
+        data.failed +
+        data.planning +
+        data.recruiting +
+        data.expired,
       successRate:
         data.successful + data.failed > 0
-          ? ((data.successful / (data.successful + data.failed)) * 100).toFixed(1)
+          ? ((data.successful / (data.successful + data.failed)) * 100).toFixed(
+              1,
+            )
           : "N/A",
-    }))
+    }));
 
     if (searchFilter.trim() !== "") {
       filteredStats = filteredStats.filter((crime) =>
         crime.name.toLowerCase().includes(searchFilter.toLowerCase().trim()),
-      )
+      );
     }
 
     if (difficultyFilter !== "All") {
       filteredStats = filteredStats.filter((crime) => {
-        const diff = crime.difficulty
-        if (difficultyFilter === "Easy (1-2)") return diff >= 1 && diff <= 2
-        if (difficultyFilter === "Medium (3-5)") return diff >= 3 && diff <= 5
-        if (difficultyFilter === "Hard (6-8)") return diff >= 6 && diff <= 8
-        if (difficultyFilter === "Expert (9-10)") return diff >= 9 && diff <= 10
-        return true
-      })
+        const diff = crime.difficulty;
+        if (difficultyFilter === "Easy (1-2)") return diff >= 1 && diff <= 2;
+        if (difficultyFilter === "Medium (3-5)") return diff >= 3 && diff <= 5;
+        if (difficultyFilter === "Hard (6-8)") return diff >= 6 && diff <= 8;
+        if (difficultyFilter === "Expert (9-10)")
+          return diff >= 9 && diff <= 10;
+        return true;
+      });
     }
 
     if (sortBy === "Total") {
-      filteredStats.sort((a, b) => (sortDirection === "desc" ? b.total - a.total : a.total - b.total))
+      filteredStats.sort((a, b) =>
+        sortDirection === "desc" ? b.total - a.total : a.total - b.total,
+      );
     } else if (sortBy === "Difficulty") {
       filteredStats.sort((a, b) =>
-        sortDirection === "desc" ? b.difficulty - a.difficulty : a.difficulty - b.difficulty,
-      )
+        sortDirection === "desc"
+          ? b.difficulty - a.difficulty
+          : a.difficulty - b.difficulty,
+      );
     } else if (sortBy === "Success") {
       filteredStats.sort((a, b) =>
-        sortDirection === "desc" ? b.successful - a.successful : a.successful - b.successful,
-      )
+        sortDirection === "desc"
+          ? b.successful - a.successful
+          : a.successful - b.successful,
+      );
     } else if (sortBy === "Failed") {
-      filteredStats.sort((a, b) => (sortDirection === "desc" ? b.failed - a.failed : a.failed - b.failed))
+      filteredStats.sort((a, b) =>
+        sortDirection === "desc" ? b.failed - a.failed : a.failed - b.failed,
+      );
     } else if (sortBy === "Payout") {
       filteredStats.sort((a, b) =>
-        sortDirection === "desc" ? b.totalPayout - a.totalPayout : a.totalPayout - b.totalPayout,
-      )
+        sortDirection === "desc"
+          ? b.totalPayout - a.totalPayout
+          : a.totalPayout - b.totalPayout,
+      );
     } else if (sortBy === "Respect") {
       filteredStats.sort((a, b) =>
-        sortDirection === "desc" ? b.totalRespect - a.totalRespect : a.totalRespect - b.totalRespect,
-      )
+        sortDirection === "desc"
+          ? b.totalRespect - a.totalRespect
+          : a.totalRespect - b.totalRespect,
+      );
     } else if (sortBy === "Success Rate") {
       filteredStats.sort((a, b) => {
-        const rateA = a.successRate === "N/A" ? -1 : Number.parseFloat(a.successRate)
-        const rateB = b.successRate === "N/A" ? -1 : Number.parseFloat(b.successRate)
-        return sortDirection === "desc" ? rateB - rateA : rateA - rateB
-      })
+        const rateA =
+          a.successRate === "N/A" ? -1 : Number.parseFloat(a.successRate);
+        const rateB =
+          b.successRate === "N/A" ? -1 : Number.parseFloat(b.successRate);
+        return sortDirection === "desc" ? rateB - rateA : rateA - rateB;
+      });
     } else if (sortBy === "Name") {
       filteredStats.sort((a, b) =>
-        sortDirection === "desc" ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name),
-      )
+        sortDirection === "desc"
+          ? b.name.localeCompare(a.name)
+          : a.name.localeCompare(b.name),
+      );
     }
 
-    return filteredStats
-  }, [crimesFilteredByStatus, difficultyFilter, sortBy, sortDirection, searchFilter])
+    return filteredStats;
+  }, [
+    crimesFilteredByStatus,
+    difficultyFilter,
+    sortBy,
+    sortDirection,
+    searchFilter,
+  ]);
 
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+  const delay = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   const fetchCompletedCrimes = async () => {
-    const apiKey = await apiKeyManager.getApiKey()
-    if (!apiKey) return
+    const apiKey = await apiKeyManager.getApiKey();
+    if (!apiKey) return;
 
-    setIsLoading(true)
-    setIsPaused(false)
-    setCurrentWeek(0)
+    setIsLoading(true);
+    setIsPaused(false);
+    setCurrentWeek(0);
 
     try {
-      const allCrimes: Crime[] = []
-      let hasMoreData = true
-      const weekCount = 0
-      let oldestTimestamp: number | null = null
-      let lastOldestCrimeId: number | null = null
-      let requestCount = 0
+      const allCrimes: Crime[] = [];
+      let hasMoreData = true;
+      const weekCount = 0;
+      let oldestTimestamp: number | null = null;
+      let lastOldestCrimeId: number | null = null;
+      let requestCount = 0;
 
-      console.log("[v0] Fetching latest crimes (fresh, not cached)")
-      const firstUrl = `https://api.torn.com/v2/faction/crimes?cat=completed&sort=DESC&striptags=true&comment=oc_dashboard_crimes`
-      const firstData = await crimeApiCache.fetchWithCache(firstUrl, apiKey, true)
+      console.log("[v0] Fetching latest crimes (fresh, not cached)");
+      const firstUrl = `https://api.torn.com/v2/faction/crimes?cat=completed&sort=DESC&striptags=true&comment=oc_dashboard_crimes`;
+      const firstData = await crimeApiCache.fetchWithCache(
+        firstUrl,
+        apiKey,
+        true,
+      );
 
       if (firstData.crimes) {
-        const crimesArray = Object.values(firstData.crimes)
-        allCrimes.push(...crimesArray)
-        setHistoricalCrimes([...allCrimes])
-        setCrimes([...allCrimes])
-        setTotalCrimes(allCrimes.length)
+        const crimesArray = Object.values(firstData.crimes);
+        allCrimes.push(...crimesArray);
+        setHistoricalCrimes([...allCrimes]);
+        setCrimes([...allCrimes]);
+        setTotalCrimes(allCrimes.length);
 
         toast({
           title: "Fetching",
           description: `Fetched ${allCrimes.length} crimes`,
-        })
+        });
 
         if (crimesArray.length > 0) {
           const oldestCrime = crimesArray.reduce((oldest, crime) =>
             crime.executed_at < oldest.executed_at ? crime : oldest,
-          )
-          oldestTimestamp = oldestCrime.executed_at
-          lastOldestCrimeId = oldestCrime.id
+          );
+          oldestTimestamp = oldestCrime.executed_at;
+          lastOldestCrimeId = oldestCrime.id;
         } else {
-          hasMoreData = false
+          hasMoreData = false;
         }
       } else {
-        hasMoreData = false
+        hasMoreData = false;
       }
 
-      requestCount++
+      requestCount++;
 
       while (hasMoreData && oldestTimestamp) {
         if (requestCount > 0 && requestCount % REQUESTS_PER_BATCH === 0) {
-          console.log(`[v0] Rate limit: Sleeping for 1 minute after ${requestCount} requests`)
+          console.log(
+            `[v0] Rate limit: Sleeping for 1 minute after ${requestCount} requests`,
+          );
           toast({
             title: "Rate Limit Pause",
             description: `Pausing for 1 minute after ${requestCount} requests to respect API limits`,
-          })
-          await new Promise((resolve) => setTimeout(resolve, BATCH_SLEEP_TIME))
+          });
+          await new Promise((resolve) => setTimeout(resolve, BATCH_SLEEP_TIME));
         }
 
-        const historicalUrl = `https://api.torn.com/v2/faction/crimes?cat=completed&sort=DESC&to=${oldestTimestamp}&striptags=true&comment=oc_dashboard_crimes`
-        const data = await crimeApiCache.fetchWithCache(historicalUrl, apiKey, false)
-        requestCount++
+        const historicalUrl = `https://api.torn.com/v2/faction/crimes?cat=completed&sort=DESC&to=${oldestTimestamp}&striptags=true&comment=oc_dashboard_crimes`;
+        const data = await crimeApiCache.fetchWithCache(
+          historicalUrl,
+          apiKey,
+          false,
+        );
+        requestCount++;
 
         if (requestCount % 10 === 0) {
           toast({
             title: "Fetching Historical Data",
             description: `Fetched ${allCrimes.length} crimes (Request ${requestCount})`,
-          })
+          });
         }
 
         if (data.crimes && Object.keys(data.crimes).length > 0) {
-          const crimesArray = Object.values(data.crimes)
+          const crimesArray = Object.values(data.crimes);
 
           const newOldestCrime = crimesArray.reduce((oldest, crime) =>
             crime.executed_at < oldest.executed_at ? crime : oldest,
-          )
+          );
 
           if (newOldestCrime.id === lastOldestCrimeId) {
-            hasMoreData = false
-            break
+            hasMoreData = false;
+            break;
           }
 
-          allCrimes.push(...crimesArray)
-          setHistoricalCrimes([...allCrimes])
-          setCrimes([...allCrimes])
-          setTotalCrimes(allCrimes.length)
+          allCrimes.push(...crimesArray);
+          setHistoricalCrimes([...allCrimes]);
+          setCrimes([...allCrimes]);
+          setTotalCrimes(allCrimes.length);
 
-          oldestTimestamp = newOldestCrime.executed_at
-          lastOldestCrimeId = newOldestCrime.id
+          oldestTimestamp = newOldestCrime.executed_at;
+          lastOldestCrimeId = newOldestCrime.id;
         } else {
-          hasMoreData = false
+          hasMoreData = false;
         }
       }
 
       if (allCrimes.length > 0) {
-        await db.set(STORES.CACHE, "factionHistoricalCrimes", allCrimes)
-        await db.set(STORES.CACHE, "lastHistoricalFetch", Date.now())
-        console.log(`[v0] Fetched and stored ${allCrimes.length} historical crimes`)
+        await db.set(STORES.CACHE, "factionHistoricalCrimes", allCrimes);
+        await db.set(STORES.CACHE, "lastHistoricalFetch", Date.now());
+        console.log(
+          `[v0] Fetched and stored ${allCrimes.length} historical crimes`,
+        );
 
         toast({
           title: "Success",
           description: `Fetched ${allCrimes.length} historical crimes`,
-        })
+        });
       }
     } catch (err) {
-      console.error("[v0] Error fetching historical crimes:", err)
+      console.error("[v0] Error fetching historical crimes:", err);
       toast({
         title: "Error",
         description: "Failed to fetch historical crimes",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleLogout = () => {
-    handleFullLogout()
+    handleFullLogout();
     toast({
       title: "Success",
       description: "Logged out successfully",
-    })
+    });
     setTimeout(() => {
-      router.push("/")
-    }, 500)
-  }
+      router.push("/");
+    }, 500);
+  };
 
-  const formatNumber = (num: number) => new Intl.NumberFormat().format(num)
+  const formatNumber = (num: number) => new Intl.NumberFormat().format(num);
 
   const toggleCrime = (crimeName: string) => {
-    const newExpanded = new Set(expandedCrimes)
+    const newExpanded = new Set(expandedCrimes);
     if (newExpanded.has(crimeName)) {
-      newExpanded.delete(crimeName)
+      newExpanded.delete(crimeName);
     } else {
-      newExpanded.add(crimeName)
+      newExpanded.add(crimeName);
     }
-    setExpandedCrimes(newExpanded)
-  }
+    setExpandedCrimes(newExpanded);
+  };
 
   const handleDateRangeChange = (start: Date, end: Date) => {
-    setCustomDateRange({ start, end })
-  }
+    setCustomDateRange({ start, end });
+  };
 
   const handlePresetChange = (preset: string) => {
-    setDatePreset(preset)
-  }
+    setDatePreset(preset);
+  };
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
@@ -526,10 +603,17 @@ export default function CrimeReportsPage() {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <button onClick={() => router.push("/dashboard")} className="hover:opacity-80 transition-opacity">
-                <h1 className="text-3xl font-bold text-foreground">Crime Reports</h1>
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="hover:opacity-80 transition-opacity"
+              >
+                <h1 className="text-3xl font-bold text-foreground">
+                  Crime Reports
+                </h1>
               </button>
-              <p className="text-sm text-muted-foreground mt-1">Detailed historical crime data</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Detailed historical crime data
+              </p>
             </div>
           </div>
           <div className="relative">
@@ -542,12 +626,15 @@ export default function CrimeReportsPage() {
             </button>
             {dropdownOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setDropdownOpen(false)}
+                />
                 <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
                   <button
                     onClick={() => {
-                      router.push("/dashboard/faction")
-                      setDropdownOpen(false)
+                      router.push("/dashboard/faction");
+                      setDropdownOpen(false);
                     }}
                     className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-accent transition-colors"
                   >
@@ -556,8 +643,8 @@ export default function CrimeReportsPage() {
                   </button>
                   <button
                     onClick={() => {
-                      router.push("/dashboard")
-                      setDropdownOpen(false)
+                      router.push("/dashboard");
+                      setDropdownOpen(false);
                     }}
                     className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-accent transition-colors border-t border-border"
                   >
@@ -566,8 +653,8 @@ export default function CrimeReportsPage() {
                   </button>
                   <button
                     onClick={() => {
-                      handleLogout()
-                      setDropdownOpen(false)
+                      handleLogout();
+                      setDropdownOpen(false);
                     }}
                     className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-destructive/10 text-destructive transition-colors border-t border-border"
                   >
@@ -585,7 +672,9 @@ export default function CrimeReportsPage() {
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Fetch Historical Data</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                Fetch Historical Data
+              </h3>
               <button
                 onClick={fetchCompletedCrimes}
                 disabled={isLoading}
@@ -606,9 +695,11 @@ export default function CrimeReportsPage() {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              This will fetch all completed crimes by cycling back in time using the oldest timestamp. The process may
-              take several minutes depending on your faction's history. Requests are limited to 30 per minute with a
-              1-minute pause between batches to respect API rate limits.
+              This will fetch all completed crimes by cycling back in time using
+              the oldest timestamp. The process may take several minutes
+              depending on your faction's history. Requests are limited to 30
+              per minute with a 1-minute pause between batches to respect API
+              rate limits.
             </p>
             {isLoading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -621,27 +712,39 @@ export default function CrimeReportsPage() {
           {crimesFilteredByStatus.length > 0 && (
             <>
               <div className="bg-card p-3 rounded-lg border border-border/50">
-                <div className="text-xs text-muted-foreground mb-2 font-bold">Status Breakdown</div>
+                <div className="text-xs text-muted-foreground mb-2 font-bold">
+                  Status Breakdown
+                </div>
                 <div className="flex flex-wrap gap-3 text-sm">
                   <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground">Planning:</span>
-                    <span className="font-bold text-blue-400">{summary.statusCounts.Planning}</span>
+                    <span className="font-bold text-blue-400">
+                      {summary.statusCounts.Planning}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground">Recruiting:</span>
-                    <span className="font-bold text-purple-400">{summary.statusCounts.Recruiting}</span>
+                    <span className="font-bold text-purple-400">
+                      {summary.statusCounts.Recruiting}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground">Successful:</span>
-                    <span className="font-bold text-green-400">{summary.statusCounts.Successful}</span>
+                    <span className="font-bold text-green-400">
+                      {summary.statusCounts.Successful}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground">Failure:</span>
-                    <span className="font-bold text-red-400">{summary.statusCounts.Failed}</span>
+                    <span className="font-bold text-red-400">
+                      {summary.statusCounts.Failed}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground">Expired:</span>
-                    <span className="font-bold text-gray-400">{summary.statusCounts.Expired}</span>
+                    <span className="font-bold text-gray-400">
+                      {summary.statusCounts.Expired}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -652,7 +755,9 @@ export default function CrimeReportsPage() {
                 <div className="border-b border-border pb-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Search Crime</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                        Search Crime
+                      </label>
                       <input
                         type="text"
                         value={searchFilter}
@@ -663,7 +768,9 @@ export default function CrimeReportsPage() {
                     </div>
 
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Sort By</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                        Sort By
+                      </label>
                       <div className="flex gap-2">
                         <select
                           value={sortBy}
@@ -680,9 +787,15 @@ export default function CrimeReportsPage() {
                           <option value="Name">Name</option>
                         </select>
                         <button
-                          onClick={() => setSortDirection(sortDirection === "asc" ? "desc" : "asc")}
+                          onClick={() =>
+                            setSortDirection(
+                              sortDirection === "asc" ? "desc" : "asc",
+                            )
+                          }
                           className="px-3 py-2 bg-background border border-border rounded-lg text-sm hover:bg-accent transition-colors"
-                          title={sortDirection === "asc" ? "Ascending" : "Descending"}
+                          title={
+                            sortDirection === "asc" ? "Ascending" : "Descending"
+                          }
                         >
                           {sortDirection === "asc" ? "↑" : "↓"}
                         </button>
@@ -722,18 +835,18 @@ export default function CrimeReportsPage() {
               </div>
 
               {crimeStats.map((crime) => {
-                const isExpanded = expandedCrimes.has(crime.name)
-                const metadata = CRIME_METADATA[crime.name]
-                const pieData = []
-                const colors = []
+                const isExpanded = expandedCrimes.has(crime.name);
+                const metadata = CRIME_METADATA[crime.name];
+                const pieData = [];
+                const colors = [];
 
                 if (crime.successful > 0) {
                   pieData.push({
                     x: "Success",
                     y: crime.successful,
                     label: `Success: ${crime.successful}`,
-                  })
-                  colors.push("#22c55e")
+                  });
+                  colors.push("#22c55e");
                 }
 
                 if (crime.failed > 0) {
@@ -741,8 +854,8 @@ export default function CrimeReportsPage() {
                     x: "Failed",
                     y: crime.failed,
                     label: `Failed: ${crime.failed}`,
-                  })
-                  colors.push("#ef4444")
+                  });
+                  colors.push("#ef4444");
                 }
 
                 if (crime.planning > 0) {
@@ -750,8 +863,8 @@ export default function CrimeReportsPage() {
                     x: "Planning",
                     y: crime.planning,
                     label: `Planning: ${crime.planning}`,
-                  })
-                  colors.push("#3b82f6")
+                  });
+                  colors.push("#3b82f6");
                 }
 
                 if (crime.recruiting > 0) {
@@ -759,8 +872,8 @@ export default function CrimeReportsPage() {
                     x: "Recruiting",
                     y: crime.recruiting,
                     label: `Recruiting: ${crime.recruiting}`,
-                  })
-                  colors.push("#a855f7")
+                  });
+                  colors.push("#a855f7");
                 }
 
                 if (crime.expired > 0) {
@@ -768,26 +881,74 @@ export default function CrimeReportsPage() {
                     x: "Expired",
                     y: crime.expired,
                     label: `Expired: ${crime.expired}`,
-                  })
-                  colors.push("#6b7280")
+                  });
+                  colors.push("#6b7280");
                 }
 
                 const crimeInstances = crimesFilteredByStatus.filter(
                   (c) => c.name === crime.name && c.status === "Successful",
-                )
-                const totalMoney = crimeInstances.reduce((sum, c) => sum + (c.rewards?.money || 0), 0)
-                const avgMoney = crimeInstances.length > 0 ? totalMoney / crimeInstances.length : 0
+                );
+                const totalMoney = crimeInstances.reduce(
+                  (sum, c) => sum + (c.rewards?.money || 0),
+                  0,
+                );
+                const avgMoney =
+                  crimeInstances.length > 0
+                    ? totalMoney / crimeInstances.length
+                    : 0;
+
+                // Calculate average respect
+                const totalRespect = crimeInstances.reduce(
+                  (sum, c) => sum + (c.rewards?.respect || 0),
+                  0,
+                );
+                const avgRespect =
+                  crimeInstances.length > 0
+                    ? totalRespect / crimeInstances.length
+                    : 0;
+
+                // Calculate the estimated cost of consumed materials
+                let materialCost = 0;
+                if (metadata) {
+                  metadata.slots.forEach((slot) => {
+                    if (slot.required_item && slot.required_item.is_used) {
+                      const price =
+                        items.get(slot.required_item.id)?.value?.market_price ||
+                        0;
+                      materialCost += price;
+                    }
+                    if (slot.secondary_item && slot.secondary_item.is_used) {
+                      const price =
+                        items.get(slot.secondary_item.id)?.value
+                          ?.market_price || 0;
+                      materialCost += price;
+                    }
+                  });
+                }
+
+                const totalExecutions = crime.successful + crime.failed;
+                const totalMaterialCost = materialCost * totalExecutions;
+
+                // Calculate the average net profit per successful run
+                const avgNetProfit = avgMoney - materialCost;
 
                 return (
-                  <div key={crime.name} className="bg-card border border-border/50 rounded-lg overflow-hidden">
+                  <div
+                    key={crime.name}
+                    className="bg-card border border-border/50 rounded-lg overflow-hidden"
+                  >
                     <button
                       onClick={() => toggleCrime(crime.name)}
                       className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <h4 className="font-semibold text-foreground">{crime.name}</h4>
-                          <span className={`text-sm font-bold ${getDifficultyColor(crime.difficulty)}`}>
+                          <h4 className="font-semibold text-foreground">
+                            {crime.name}
+                          </h4>
+                          <span
+                            className={`text-sm font-bold ${getDifficultyColor(crime.difficulty)}`}
+                          >
                             (Diff: {crime.difficulty})
                           </span>
                         </div>
@@ -798,10 +959,14 @@ export default function CrimeReportsPage() {
                             </span>
                           )}
                           {crime.failed > 0 && (
-                            <span className="text-red-400 font-bold whitespace-nowrap">{crime.failed} Failed</span>
+                            <span className="text-red-400 font-bold whitespace-nowrap">
+                              {crime.failed} Failed
+                            </span>
                           )}
                           {crime.planning > 0 && (
-                            <span className="text-blue-400 font-bold whitespace-nowrap">{crime.planning} Planning</span>
+                            <span className="text-blue-400 font-bold whitespace-nowrap">
+                              {crime.planning} Planning
+                            </span>
                           )}
                           {crime.recruiting > 0 && (
                             <span className="text-purple-400 font-bold whitespace-nowrap">
@@ -809,10 +974,14 @@ export default function CrimeReportsPage() {
                             </span>
                           )}
                           {crime.expired > 0 && (
-                            <span className="text-gray-400 font-bold whitespace-nowrap">{crime.expired} Expired</span>
+                            <span className="text-gray-400 font-bold whitespace-nowrap">
+                              {crime.expired} Expired
+                            </span>
                           )}
                           {crime.successRate !== "N/A" && (
-                            <span className="text-muted-foreground whitespace-nowrap">({crime.successRate}%)</span>
+                            <span className="text-muted-foreground whitespace-nowrap">
+                              ({crime.successRate}%)
+                            </span>
                           )}
                         </div>
                       </div>
@@ -827,27 +996,44 @@ export default function CrimeReportsPage() {
                         {metadata && (
                           <div className="mb-6 space-y-4">
                             <div className="bg-background/50 rounded-lg p-4 border border-border">
-                              <h5 className="text-sm font-bold text-primary mb-2">Description</h5>
-                              <p className="text-sm text-muted-foreground leading-relaxed">{metadata.description}</p>
+                              <h5 className="text-sm font-bold text-primary mb-2">
+                                Description
+                              </h5>
+                              <p className="text-sm text-muted-foreground leading-relaxed">
+                                {metadata.description}
+                              </p>
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                               <div className="bg-background/50 rounded-lg p-3 border border-border">
-                                <div className="text-xs text-muted-foreground mb-1">Spawn Level</div>
+                                <div className="text-xs text-muted-foreground mb-1">
+                                  Spawn Level
+                                </div>
                                 <div className="text-lg font-bold text-cyan-400">
-                                  {metadata.spawn.name} (Lvl {metadata.spawn.level})
+                                  {metadata.spawn.name} (Lvl{" "}
+                                  {metadata.spawn.level})
                                 </div>
                               </div>
                               <div className="bg-background/50 rounded-lg p-3 border border-border">
-                                <div className="text-xs text-muted-foreground mb-1">Scope Cost</div>
-                                <div className="text-lg font-bold text-orange-400">{metadata.scope.cost}</div>
+                                <div className="text-xs text-muted-foreground mb-1">
+                                  Scope Cost
+                                </div>
+                                <div className="text-lg font-bold text-orange-400">
+                                  {metadata.scope.cost}
+                                </div>
                               </div>
                               <div className="bg-background/50 rounded-lg p-3 border border-border">
-                                <div className="text-xs text-muted-foreground mb-1">Scope Return</div>
-                                <div className="text-lg font-bold text-green-400">{metadata.scope.return}</div>
+                                <div className="text-xs text-muted-foreground mb-1">
+                                  Scope Return
+                                </div>
+                                <div className="text-lg font-bold text-green-400">
+                                  {metadata.scope.return}
+                                </div>
                               </div>
                               <div className="bg-background/50 rounded-lg p-3 border border-border">
-                                <div className="text-xs text-muted-foreground mb-1">Prerequisite</div>
+                                <div className="text-xs text-muted-foreground mb-1">
+                                  Prerequisite
+                                </div>
                                 <div className="text-sm font-bold text-yellow-400">
                                   {metadata.prerequisite || "None"}
                                 </div>
@@ -855,7 +1041,9 @@ export default function CrimeReportsPage() {
                             </div>
 
                             <div className="bg-background/50 rounded-lg p-4 border border-border">
-                              <div className="text-xs text-muted-foreground mb-1">Required Roles & Items</div>
+                              <div className="text-xs text-muted-foreground mb-1">
+                                Required Roles & Items
+                              </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {metadata.slots.map((slot) => (
                                   <div
@@ -863,17 +1051,85 @@ export default function CrimeReportsPage() {
                                     className="flex items-center justify-between p-2 bg-background rounded border border-border/50"
                                   >
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs font-mono text-muted-foreground">{slot.id}</span>
-                                      <span className="text-sm font-medium">{slot.name}</span>
+                                      <span className="text-xs font-mono text-muted-foreground">
+                                        {slot.id}
+                                      </span>
+                                      <span className="text-sm font-medium">
+                                        {slot.name}
+                                      </span>
                                     </div>
-                                    {slot.required_item && (
-                                      <div className="flex items-center gap-1 text-xs">
-                                        <span className="text-muted-foreground">{slot.required_item.name}</span>
-                                        {slot.required_item.is_used && (
-                                          <span className="text-red-400 font-bold">(Used)</span>
-                                        )}
-                                      </div>
-                                    )}
+                                    <div className="flex flex-col items-end gap-1">
+                                      {slot.required_item &&
+                                        (() => {
+                                          const itemData = items.get(
+                                            slot.required_item.id,
+                                          );
+                                          return (
+                                            <div className="flex items-center gap-2 text-xs">
+                                              {itemData && (
+                                                <button
+                                                  onClick={() =>
+                                                    setSelectedItem(itemData)
+                                                  }
+                                                  className="hover:opacity-80 shrink-0"
+                                                >
+                                                  <img
+                                                    src={
+                                                      itemData.image ||
+                                                      "/placeholder.svg"
+                                                    }
+                                                    alt={itemData.name}
+                                                    className="w-6 h-6 rounded"
+                                                  />
+                                                </button>
+                                              )}
+                                              <span className="text-muted-foreground">
+                                                {slot.required_item.name}
+                                              </span>
+                                              {slot.required_item.is_used && (
+                                                <span className="text-red-400 font-bold">
+                                                  (Used)
+                                                </span>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                      {slot.secondary_item &&
+                                        (() => {
+                                          const itemData = items.get(
+                                            slot.secondary_item.id,
+                                          );
+                                          return (
+                                            <div className="flex items-center gap-2 text-xs">
+                                              {itemData && (
+                                                <button
+                                                  onClick={() =>
+                                                    setSelectedItem(itemData)
+                                                  }
+                                                  className="hover:opacity-80 shrink-0"
+                                                >
+                                                  <img
+                                                    src={
+                                                      itemData.image ||
+                                                      "/placeholder.svg"
+                                                    }
+                                                    alt={itemData.name}
+                                                    className="w-6 h-6 rounded"
+                                                  />
+                                                </button>
+                                              )}
+                                              <span className="text-muted-foreground">
+                                                {slot.secondary_item.name}
+                                              </span>
+                                              {slot.secondary_item.is_used && (
+                                                <span className="text-red-400 font-bold">
+                                                  (Used)
+                                                </span>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -881,20 +1137,81 @@ export default function CrimeReportsPage() {
                           </div>
                         )}
 
-                        <div className="mb-6 grid grid-cols-2 gap-4">
+                        <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div className="bg-background rounded-lg p-4 border border-border">
-                            <div className="text-xs text-muted-foreground mb-1">Total Money</div>
-                            <div className="text-xl font-bold text-green-500">{formatCurrency(crime.totalPayout)}</div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Total Payout
+                            </div>
+                            <div className="text-xl font-bold text-green-500">
+                              {formatCurrency(crime.totalPayout)}
+                            </div>
                           </div>
                           <div className="bg-background rounded-lg p-4 border border-border">
-                            <div className="text-xs text-muted-foreground mb-1">Average Money</div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Average Payout
+                            </div>
                             <div className="text-xl font-bold text-green-500">
-                              {formatCurrency(Math.round(crime.totalPayout / crime.successful))}
+                              {formatCurrency(Math.round(avgMoney))}
+                            </div>
+                          </div>
+                          <div className="bg-background rounded-lg p-4 border border-border">
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Total Material Cost
+                            </div>
+                            <div className="text-xl font-bold text-red-400">
+                              {totalMaterialCost > 0
+                                ? formatCurrency(totalMaterialCost)
+                                : "$0"}
+                            </div>
+                          </div>
+                          <div className="bg-background rounded-lg p-4 border border-border">
+                            <div className="text-xs text-muted-foreground mb-1">
+                              {avgMoney === 0 && avgRespect > 0
+                                ? "Net Cost (for Respect)"
+                                : "Avg Net Payout"}
+                            </div>
+                            <div
+                              className={`text-xl font-bold ${avgNetProfit > 0 ? "text-cyan-400" : avgNetProfit < 0 ? "text-red-500" : "text-muted-foreground"}`}
+                            >
+                              {avgNetProfit < 0
+                                ? `-$${new Intl.NumberFormat().format(Math.abs(Math.round(avgNetProfit)))}`
+                                : formatCurrency(Math.round(avgNetProfit))}
                             </div>
                           </div>
                         </div>
+
+                        <div
+                          className={`mb-6 grid grid-cols-1 ${avgRespect > 0 ? "md:grid-cols-2" : "md:grid-cols-1"} gap-4`}
+                        >
+                          <div className="bg-background rounded-lg p-4 border border-border">
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Material Cost (Per OC)
+                            </div>
+                            <div className="text-lg font-bold text-red-400">
+                              {materialCost > 0
+                                ? formatCurrency(materialCost)
+                                : "$0"}
+                            </div>
+                          </div>
+                          {avgRespect > 0 && (
+                            <div className="bg-background rounded-lg p-4 border border-border">
+                              <div className="text-xs text-muted-foreground mb-1">
+                                Respect Gained (Avg / Total)
+                              </div>
+                              <div className="text-lg font-bold text-purple-400">
+                                {avgRespect.toFixed(1)} /{" "}
+                                {totalRespect.toLocaleString()}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex justify-center">
-                          <svg width={300} height={300} style={{ overflow: "visible" }}>
+                          <svg
+                            width={300}
+                            height={300}
+                            style={{ overflow: "visible" }}
+                          >
                             <VictoryPie
                               standalone={false}
                               width={300}
@@ -917,9 +1234,18 @@ export default function CrimeReportsPage() {
                         </div>
                         <div className="flex justify-center gap-4 mt-4 flex-wrap">
                           {pieData.map((entry, index) => (
-                            <div key={`legend-${index}`} className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index] }} />
-                              <span className="text-sm font-medium" style={{ color: colors[index] }}>
+                            <div
+                              key={`legend-${index}`}
+                              className="flex items-center gap-2"
+                            >
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: colors[index] }}
+                              />
+                              <span
+                                className="text-sm font-medium"
+                                style={{ color: colors[index] }}
+                              >
                                 {entry.label}
                               </span>
                             </div>
@@ -928,7 +1254,7 @@ export default function CrimeReportsPage() {
                       </div>
                     )}
                   </div>
-                )
+                );
               })}
             </>
           )}
@@ -948,9 +1274,5 @@ export default function CrimeReportsPage() {
         </div>
       </footer>
     </div>
-  )
-}
-
-interface CrimesResponse {
-  crimes: Record<string, Crime>
+  );
 }

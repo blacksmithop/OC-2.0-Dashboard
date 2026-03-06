@@ -1,28 +1,54 @@
 export interface CrimeMetadata {
-  name: string
-  description: string
-  difficulty: number
+  name: string;
+  description: string;
+  difficulty: number;
   spawn: {
-    level: number
-    name: string
-  }
+    level: number;
+    name: string;
+  };
   scope: {
-    cost: number
-    return: number
-  }
-  prerequisite: string | null
+    cost: number;
+    return: number;
+  };
+  prerequisite: string | null;
   slots: Array<{
-    id: string
-    name: string
+    id: string;
+    name: string;
     required_item: {
-      id: number
-      name: string
-      is_used: boolean
-    } | null
-  }>
+      id: number;
+      name: string;
+      is_used: boolean;
+    } | null;
+    secondary_item?: {
+      id: number;
+      name: string;
+      is_used: boolean;
+    } | null;
+  }>;
 }
 
 export const CRIME_METADATA: Record<string, CrimeMetadata> = {
+  "First Aid and Abet": {
+    name: "First Aid and Abet",
+    description: "",
+    difficulty: 1,
+    spawn: { level: 1, name: "λ" },
+    scope: { cost: 1, return: 2 },
+    prerequisite: null,
+    slots: [
+      {
+        id: "P1",
+        name: "Picklock",
+        required_item: { id: 1203, name: "Lockpicks", is_used: false },
+      },
+      {
+        id: "P2",
+        name: "Decoy",
+        required_item: { id: 0, name: "Shaving Foam", is_used: true },
+      },
+      { id: "P3", name: "Pickpocket", required_item: null },
+    ],
+  },
   "Mob Mentality": {
     name: "Mob Mentality",
     description:
@@ -32,9 +58,17 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 1, return: 2 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Looter", required_item: { id: 568, name: "Jemmy", is_used: false } },
+      {
+        id: "P1",
+        name: "Looter",
+        required_item: { id: 568, name: "Jemmy", is_used: false },
+      },
       { id: "P2", name: "Looter", required_item: null },
-      { id: "P3", name: "Looter", required_item: { id: 568, name: "Jemmy", is_used: false } },
+      {
+        id: "P3",
+        name: "Looter",
+        required_item: { id: 568, name: "Jemmy", is_used: false },
+      },
       { id: "P4", name: "Looter", required_item: null },
     ],
   },
@@ -47,9 +81,21 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 1, return: 2 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Kidnapper", required_item: { id: 1361, name: "Dog Treats", is_used: true } },
-      { id: "P2", name: "Muscle", required_item: { id: 1362, name: "Net", is_used: false } },
-      { id: "P3", name: "Picklock", required_item: { id: 1203, name: "Lockpicks", is_used: false } },
+      {
+        id: "P1",
+        name: "Kidnapper",
+        required_item: { id: 1361, name: "Dog Treats", is_used: true },
+      },
+      {
+        id: "P2",
+        name: "Muscle",
+        required_item: { id: 1362, name: "Net", is_used: false },
+      },
+      {
+        id: "P3",
+        name: "Picklock",
+        required_item: { id: 1203, name: "Lockpicks", is_used: false },
+      },
     ],
   },
   "Best of the Lot": {
@@ -61,10 +107,18 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 1, return: 2 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Picklock", required_item: { id: 1203, name: "Lockpicks", is_used: false } },
+      {
+        id: "P1",
+        name: "Picklock",
+        required_item: { id: 1203, name: "Lockpicks", is_used: false },
+      },
       { id: "P2", name: "Car Thief", required_item: null },
       { id: "P3", name: "Muscle", required_item: null },
-      { id: "P4", name: "Imitator", required_item: { id: 1350, name: "Police Badge", is_used: false } },
+      {
+        id: "P4",
+        name: "Impersonator",
+        required_item: { id: 1350, name: "Police Badge", is_used: false },
+      },
     ],
   },
   "Cash Me if You Can": {
@@ -76,8 +130,16 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 1, return: 2 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Thief", required_item: { id: 1381, name: "ID Badge", is_used: true } },
-      { id: "P2", name: "Thief", required_item: { id: 1379, name: "ATM Key", is_used: true } },
+      {
+        id: "P1",
+        name: "Thief",
+        required_item: { id: 1381, name: "ID Badge", is_used: true },
+      },
+      {
+        id: "P2",
+        name: "Thief",
+        required_item: { id: 1379, name: "ATM Key", is_used: true },
+      },
       { id: "P3", name: "Lookout", required_item: null },
     ],
   },
@@ -90,11 +152,26 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 2, return: 3 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Imitator", required_item: { id: 643, name: "Construction Helmet", is_used: false } },
-      { id: "P2", name: "Looter", required_item: null },
-      { id: "P3", name: "Imitator", required_item: { id: 1381, name: "ID Badge", is_used: true } },
+      {
+        id: "P1",
+        name: "Imitator",
+        required_item: { id: 643, name: "Construction Helmet", is_used: false },
+        secondary_item: { id: 1381, name: "ID Badge", is_used: true },
+      },
+      {
+        id: "P2",
+        name: "Imitator",
+        required_item: { id: 643, name: "Construction Helmet", is_used: false },
+        secondary_item: { id: 1381, name: "ID Badge", is_used: true },
+      },
+      {
+        id: "P3",
+        name: "Imitator",
+        required_item: { id: 643, name: "Construction Helmet", is_used: false },
+        secondary_item: { id: 1381, name: "ID Badge", is_used: true },
+      },
       { id: "P4", name: "Looter", required_item: null },
-      { id: "P5", name: "Imitator", required_item: { id: 1381, name: "ID Badge", is_used: true } },
+      { id: "P5", name: "Looter", required_item: null },
       { id: "P6", name: "Looter", required_item: null },
     ],
   },
@@ -110,7 +187,11 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
       { id: "P1", name: "Enforcer", required_item: null },
       { id: "P2", name: "Negotiator", required_item: null },
       { id: "P3", name: "Lookout", required_item: null },
-      { id: "P4", name: "Arsonist", required_item: { id: 172, name: "Gasoline", is_used: true } },
+      {
+        id: "P4",
+        name: "Arsonist",
+        required_item: { id: 172, name: "Gasoline", is_used: true },
+      },
       { id: "P5", name: "Muscle", required_item: null },
     ],
   },
@@ -123,8 +204,16 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 2, return: 3 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Car Thief", required_item: { id: 1380, name: "RF Detector", is_used: false } },
-      { id: "P2", name: "Imitator", required_item: { id: 1383, name: "DSLR Camera", is_used: false } },
+      {
+        id: "P1",
+        name: "Car Thief",
+        required_item: { id: 1380, name: "RF Detector", is_used: false },
+      },
+      {
+        id: "P2",
+        name: "Impersonator",
+        required_item: { id: 1383, name: "DSLR Camera", is_used: false },
+      },
       { id: "P3", name: "Hustler", required_item: null },
       { id: "P4", name: "Hustler", required_item: null },
     ],
@@ -139,9 +228,31 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     prerequisite: null,
     slots: [
       { id: "P1", name: "Hustler", required_item: null },
-      { id: "P2", name: "Imitator", required_item: { id: 201, name: "PCP", is_used: true } },
+      {
+        id: "P2",
+        name: "Impersonator",
+        required_item: { id: 201, name: "PCP", is_used: true },
+      },
       { id: "P3", name: "Muscle", required_item: null },
       { id: "P4", name: "Muscle", required_item: null },
+    ],
+  },
+  "Plucking the Lotus Petal": {
+    name: "Plucking the Lotus Petal",
+    description: "",
+    difficulty: 4,
+    spawn: { level: 2, name: "Σ" },
+    scope: { cost: 2, return: 3 },
+    prerequisite: null,
+    slots: [
+      { id: "P1", name: "Muscle", required_item: null },
+      {
+        id: "P2",
+        name: "Hustler",
+        required_item: { id: 0, name: "Blank Casino Chips", is_used: true },
+      },
+      { id: "P3", name: "Robber", required_item: null },
+      { id: "P4", name: "Robber", required_item: null },
     ],
   },
   "Stage Fright": {
@@ -157,7 +268,11 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
       { id: "P2", name: "Muscle", required_item: null },
       { id: "P3", name: "Muscle", required_item: null },
       { id: "P4", name: "Muscle", required_item: null },
-      { id: "P5", name: "Lookout", required_item: { id: 1258, name: "Binoculars", is_used: false } },
+      {
+        id: "P5",
+        name: "Lookout",
+        required_item: { id: 1258, name: "Binoculars", is_used: false },
+      },
       { id: "P6", name: "Sniper", required_item: null },
     ],
   },
@@ -170,15 +285,35 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 3, return: 4 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Robber", required_item: { id: 1429, name: "Zip Ties", is_used: true } },
-      { id: "P2", name: "Looter", required_item: { id: 1429, name: "Zip Ties", is_used: true } },
-      { id: "P3", name: "Hacker", required_item: { id: 70, name: "Polymorphic Virus", is_used: true } },
-      { id: "P4", name: "Picklock", required_item: { id: 1203, name: "Lockpicks", is_used: false } },
-      { id: "P5", name: "Engineer", required_item: { id: 981, name: "Wire Cutters", is_used: false } },
+      {
+        id: "P1",
+        name: "Robber",
+        required_item: { id: 1429, name: "Zip Ties", is_used: true },
+      },
+      {
+        id: "P2",
+        name: "Looter",
+        required_item: { id: 1429, name: "Zip Ties", is_used: true },
+      },
+      {
+        id: "P3",
+        name: "Hacker",
+        required_item: { id: 70, name: "Polymorphic Virus", is_used: true },
+      },
+      {
+        id: "P4",
+        name: "Picklock",
+        required_item: { id: 1203, name: "Lockpicks", is_used: false },
+      },
+      {
+        id: "P5",
+        name: "Engineer",
+        required_item: { id: 981, name: "Wire Cutters", is_used: false },
+      },
     ],
   },
-  "Guardian Ángels": {
-    name: "Guardian Ángels",
+  "Guardian Angels": {
+    name: "Guardian Angels",
     description:
       "The cartel needs your help recovering hidden cash from a confiscated aircraft. The authorities seized a shipment of drugs flown into Torn, but they missed the money concealed within the plane's interiors. The plane is now sitting in a low-security hangar. Your job is to get the cartel's couriers inside, help them locate the money, and disappear before anyone else shows up to claim it.",
     difficulty: 5,
@@ -188,21 +323,33 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     slots: [
       { id: "P1", name: "Enforcer", required_item: null },
       { id: "P2", name: "Hustler", required_item: null },
-      { id: "P3", name: "Engineer", required_item: { id: 1331, name: "Hand Drill", is_used: false } },
+      {
+        id: "P3",
+        name: "Engineer",
+        required_item: { id: 1331, name: "Hand Drill", is_used: false },
+      },
     ],
   },
   "Leave No Trace": {
     name: "Leave No Trace",
     description:
       "Our client has just been arrested for a heinous crime. She wants us to retrieve a cell phone containing sensitive data that must be erased. The bad news: the device is inside a police station. The good news: the police captain has been bribed to make things easier. We'll need to deploy a code phrase while talking to the desk sergeant to get inside. Once we've obtained the phone, we should wipe the data outside the premises to avoid leaving a digital footprint, then return it undamaged. And don't forget to bring a cop badge–it might come in handy.",
-    difficulty: 5,
+    difficulty: 6,
     spawn: { level: 3, name: "Φ" },
     scope: { cost: 3, return: 4 },
     prerequisite: null,
     slots: [
       { id: "P1", name: "Techie", required_item: null },
-      { id: "P2", name: "Negotiator", required_item: { id: 1350, name: "Police Badge", is_used: false } },
-      { id: "P3", name: "Imitator", required_item: { id: 1350, name: "Police Badge", is_used: false } },
+      {
+        id: "P2",
+        name: "Negotiator",
+        required_item: { id: 1350, name: "Police Badge", is_used: false },
+      },
+      {
+        id: "P3",
+        name: "Imitator",
+        required_item: { id: 1350, name: "Police Badge", is_used: false },
+      },
     ],
   },
   "No Reserve": {
@@ -214,9 +361,21 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 3, return: 4 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Car Thief", required_item: { id: 159, name: "Bolt Cutters", is_used: false } },
-      { id: "P2", name: "Techie", required_item: { id: 856, name: "Spray Paint : Black", is_used: true } },
-      { id: "P3", name: "Engineer", required_item: { id: 576, name: "Chloroform", is_used: true } },
+      {
+        id: "P1",
+        name: "Car Thief",
+        required_item: { id: 159, name: "Bolt Cutters", is_used: false },
+      },
+      {
+        id: "P2",
+        name: "Techie",
+        required_item: { id: 856, name: "Spray Paint : Black", is_used: true },
+      },
+      {
+        id: "P3",
+        name: "Engineer",
+        required_item: { id: 576, name: "Chloroform", is_used: true },
+      },
     ],
   },
   "Bidding War": {
@@ -228,26 +387,54 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 3, return: 4 },
     prerequisite: "No Reserve",
     slots: [
-      { id: "P1", name: "Robber", required_item: { id: 568, name: "Jemmy", is_used: false } },
-      { id: "P2", name: "Driver", required_item: null },
-      { id: "P3", name: "Robber", required_item: { id: 222, name: "Flash Grenade", is_used: true } },
-      { id: "P4", name: "Robber", required_item: { id: 1284, name: "Dental Mirror", is_used: false } },
-      { id: "P5", name: "Bomber", required_item: { id: 190, name: "C4 Explosive", is_used: true } },
-      { id: "P6", name: "Bomber", required_item: { id: 190, name: "C4 Explosive", is_used: true } },
+      {
+        id: "P1",
+        name: "Bomber",
+        required_item: { id: 190, name: "C4 Explosive", is_used: true },
+      },
+      {
+        id: "P2",
+        name: "Robber",
+        required_item: { id: 222, name: "Flash Grenade", is_used: true },
+      },
+      {
+        id: "P3",
+        name: "Robber",
+        required_item: { id: 1284, name: "Dental Mirror", is_used: false },
+      },
+      {
+        id: "P4",
+        name: "Robber",
+        required_item: { id: 568, name: "Jemmy", is_used: false },
+      },
+      {
+        id: "P5",
+        name: "Bomber",
+        required_item: { id: 190, name: "C4 Explosive", is_used: true },
+      },
+      { id: "P6", name: "Driver", required_item: null },
     ],
   },
   "Honey Trap": {
     name: "Honey Trap",
     description:
       "Honey, a local stripper, has been blackmailing powerful individuals after bedding them, threatening to expose their proclivities. Find her and retrieve any evidence she's keeping without causing a scene–our client rewards discretion. Oh, and you might need to buy a dance, so take your money in a clip because this is an upmarket establishment.",
-    difficulty: 6,
+    difficulty: 5,
     spawn: { level: 3, name: "Φ" },
     scope: { cost: 3, return: 4 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Enforcer", required_item: { id: 1080, name: "Billfold", is_used: false } },
-      { id: "P2", name: "Muscle", required_item: null },
-      { id: "P3", name: "Muscle", required_item: { id: 1080, name: "Billfold", is_used: false } },
+      {
+        id: "P1",
+        name: "Muscle",
+        required_item: { id: 1080, name: "Billfold", is_used: false },
+      },
+      {
+        id: "P2",
+        name: "Enforcer",
+        required_item: { id: 1080, name: "Billfold", is_used: false },
+      },
+      { id: "P3", name: "Muscle", required_item: null },
     ],
   },
   "Sneaky Git Grab": {
@@ -261,8 +448,16 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     slots: [
       { id: "P1", name: "Imitator", required_item: null },
       { id: "P2", name: "Pickpocket", required_item: null },
-      { id: "P3", name: "Hacker", required_item: { id: 71, name: "Tunneling Virus", is_used: true } },
-      { id: "P4", name: "Techie", required_item: { id: 579, name: "Wireless Dongle", is_used: false } },
+      {
+        id: "P3",
+        name: "Hacker",
+        required_item: { id: 71, name: "Tunneling Virus", is_used: true },
+      },
+      {
+        id: "P4",
+        name: "Techie",
+        required_item: { id: 579, name: "Wireless Dongle", is_used: false },
+      },
     ],
   },
   "Blast from the Past": {
@@ -274,12 +469,28 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 4, return: 5 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Picklock", required_item: null },
-      { id: "P2", name: "Hacker", required_item: { id: 103, name: "Firewalk Virus", is_used: true } },
-      { id: "P3", name: "Engineer", required_item: { id: 1431, name: "Core Drill", is_used: true } },
-      { id: "P4", name: "Bomber", required_item: { id: 1430, name: "Shaped Charge", is_used: true } },
-      { id: "P5", name: "Muscle", required_item: { id: 1429, name: "Zip Ties", is_used: true } },
-      { id: "P6", name: "Picklock", required_item: null },
+      {
+        id: "P1",
+        name: "Hacker",
+        required_item: { id: 103, name: "Firewalk Virus", is_used: true },
+      },
+      { id: "P2", name: "Picklock", required_item: null },
+      {
+        id: "P3",
+        name: "Engineer",
+        required_item: { id: 1431, name: "Core Drill", is_used: true },
+      },
+      {
+        id: "P4",
+        name: "Bomber",
+        required_item: { id: 1430, name: "Shaped Charge", is_used: true },
+      },
+      { id: "P5", name: "Picklock", required_item: null },
+      {
+        id: "P6",
+        name: "Muscle",
+        required_item: { id: 1429, name: "Zip Ties", is_used: true },
+      },
     ],
   },
   "Break the Bank": {
@@ -291,12 +502,36 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 4, return: 5 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Robber", required_item: { id: 1331, name: "Hand Drill", is_used: false } },
-      { id: "P2", name: "Muscle", required_item: { id: 1331, name: "Hand Drill", is_used: false } },
-      { id: "P3", name: "Muscle", required_item: { id: 1429, name: "Zip Ties", is_used: true } },
-      { id: "P4", name: "Thief", required_item: { id: 1331, name: "Hand Drill", is_used: false } },
-      { id: "P5", name: "Muscle", required_item: { id: 1331, name: "Hand Drill", is_used: false } },
-      { id: "P6", name: "Thief", required_item: { id: 1331, name: "Hand Drill", is_used: false } },
+      {
+        id: "P1",
+        name: "Robber",
+        required_item: { id: 1331, name: "Hand Drill", is_used: false },
+      },
+      {
+        id: "P2",
+        name: "Muscle",
+        required_item: { id: 1331, name: "Hand Drill", is_used: false },
+      },
+      {
+        id: "P3",
+        name: "Muscle",
+        required_item: { id: 1429, name: "Zip Ties", is_used: true },
+      },
+      {
+        id: "P4",
+        name: "Thief",
+        required_item: { id: 1331, name: "Hand Drill", is_used: false },
+      },
+      {
+        id: "P5",
+        name: "Muscle",
+        required_item: { id: 1331, name: "Hand Drill", is_used: false },
+      },
+      {
+        id: "P6",
+        name: "Thief",
+        required_item: { id: 1331, name: "Hand Drill", is_used: false },
+      },
     ],
   },
   "Clinical Precision": {
@@ -308,10 +543,26 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 4, return: 5 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Imitator", required_item: { id: 1094, name: "Syringe", is_used: true } },
+      {
+        id: "P1",
+        name: "Assassin",
+        required_item: { id: 576, name: "Chloroform", is_used: true },
+      },
       { id: "P2", name: "Cat Burglar", required_item: null },
-      { id: "P3", name: "Assassin", required_item: { id: 576, name: "Chloroform", is_used: true } },
-      { id: "P4", name: "Cleaner", required_item: { id: 1012, name: "Blood Bag : Irradiated", is_used: true } },
+      {
+        id: "P3",
+        name: "Cleaner",
+        required_item: {
+          id: 1012,
+          name: "Blood Bag : Irradiated",
+          is_used: true,
+        },
+      },
+      {
+        id: "P4",
+        name: "Imitator",
+        required_item: { id: 1094, name: "Syringe", is_used: true },
+      },
     ],
   },
   "Stacking the Deck": {
@@ -323,10 +574,56 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 5, return: 6 },
     prerequisite: null,
     slots: [
-      { id: "P1", name: "Cat Burglar", required_item: { id: 568, name: "Jemmy", is_used: false } },
-      { id: "P2", name: "Driver", required_item: { id: 226, name: "Smoke Grenade", is_used: true } },
-      { id: "P3", name: "Hacker", required_item: { id: 73, name: "Stealth Virus", is_used: true } },
-      { id: "P4", name: "Imitator", required_item: { id: 1381, name: "ID Badge", is_used: true } },
+      {
+        id: "P1",
+        name: "Cat Burglar",
+        required_item: { id: 568, name: "Jemmy", is_used: false },
+      },
+      {
+        id: "P2",
+        name: "Driver",
+        required_item: { id: 226, name: "Smoke Grenade", is_used: true },
+      },
+      {
+        id: "P3",
+        name: "Hacker",
+        required_item: { id: 73, name: "Stealth Virus", is_used: true },
+      },
+      {
+        id: "P4",
+        name: "Imitator",
+        required_item: { id: 1381, name: "ID Badge", is_used: true },
+      },
+    ],
+  },
+  "Manifest Cruelty": {
+    name: "Manifest Cruelty",
+    description: "",
+    difficulty: 8,
+    spawn: { level: 5, name: "Ω" },
+    scope: { cost: 5, return: 6 },
+    prerequisite: null,
+    slots: [
+      {
+        id: "P1",
+        name: "Hacker",
+        required_item: { id: 73, name: "Stealth Virus", is_used: true },
+      },
+      {
+        id: "P2",
+        name: "Interrogator",
+        required_item: { id: 0, name: "Cigar Cutter", is_used: false },
+      },
+      {
+        id: "P3",
+        name: "Reviver",
+        required_item: { id: 0, name: "Car Battery", is_used: false },
+      },
+      {
+        id: "P4",
+        name: "Cat Burglar",
+        required_item: { id: 1429, name: "Zip Ties", is_used: true },
+      },
     ],
   },
   "Ace in the Hole": {
@@ -338,15 +635,90 @@ export const CRIME_METADATA: Record<string, CrimeMetadata> = {
     scope: { cost: 5, return: 6 },
     prerequisite: "Stacking the Deck",
     slots: [
-      { id: "P1", name: "Imitator", required_item: { id: 1381, name: "ID Badge", is_used: true } },
+      {
+        id: "P1",
+        name: "Imitator",
+        required_item: { id: 1381, name: "ID Badge", is_used: true },
+      },
       { id: "P2", name: "Muscle", required_item: null },
       { id: "P3", name: "Muscle", required_item: null },
       { id: "P4", name: "Hacker", required_item: null },
       { id: "P5", name: "Driver", required_item: null },
     ],
   },
-}
+  "Gone Fission": {
+    name: "Gone Fission",
+    description: "",
+    difficulty: 9,
+    spawn: { level: 5, name: "Ω" },
+    scope: { cost: 5, return: 6 },
+    prerequisite: "Manifest Cruelty",
+    slots: [
+      {
+        id: "P1",
+        name: "Hijacker",
+        required_item: { id: 1429, name: "Zip Ties", is_used: true },
+      },
+      {
+        id: "P2",
+        name: "Engineer",
+        required_item: { id: 0, name: "Thermite", is_used: true },
+      },
+      {
+        id: "P3",
+        name: "Pickpocket",
+        required_item: { id: 0, name: "Cut-Throat Razor", is_used: false },
+      },
+      {
+        id: "P4",
+        name: "Imitator",
+        required_item: { id: 1383, name: "DSLR Camera", is_used: false },
+      },
+      {
+        id: "P5",
+        name: "Bomber",
+        required_item: { id: 190, name: "C4 Explosive", is_used: true },
+      },
+    ],
+  },
+  "Crane Reaction": {
+    name: "Crane Reaction",
+    description: "",
+    difficulty: 10,
+    spawn: { level: 5, name: "Ω" },
+    scope: { cost: 5, return: 6 },
+    prerequisite: "Gone Fission",
+    slots: [
+      { id: "P1", name: "Sniper", required_item: null },
+      {
+        id: "P2",
+        name: "Lookout",
+        required_item: { id: 1258, name: "Binoculars", is_used: false },
+      },
+      {
+        id: "P3",
+        name: "Engineer",
+        required_item: { id: 1430, name: "Shaped Charge", is_used: true },
+      },
+      {
+        id: "P4",
+        name: "Bomber",
+        required_item: { id: 0, name: "Remote Detonator", is_used: false },
+      },
+      {
+        id: "P5",
+        name: "Muscle",
+        required_item: { id: 0, name: "Tear Gas", is_used: true },
+      },
+      {
+        id: "P6",
+        name: "Muscle",
+        required_item: { id: 0, name: "Tear Gas", is_used: true },
+      },
+    ],
+  },
+};
 
 export function getCrimeMetadata(crimeName: string): CrimeMetadata | null {
-  return CRIME_METADATA[crimeName] || null
+  return CRIME_METADATA[crimeName] || null;
 }
