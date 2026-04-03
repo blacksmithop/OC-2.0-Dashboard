@@ -1045,93 +1045,100 @@ export default function CrimeReportsPage() {
                                 Required Roles & Items
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {metadata.slots.map((slot) => (
-                                  <div
-                                    key={slot.id}
-                                    className="flex items-center justify-between p-2 bg-background rounded border border-border/50"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs font-mono text-muted-foreground">
-                                        {slot.id}
-                                      </span>
-                                      <span className="text-sm font-medium">
-                                        {slot.name}
-                                      </span>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                      {slot.required_item &&
-                                        (() => {
-                                          const itemData = items.get(
-                                            slot.required_item.id,
-                                          );
-                                          return (
-                                            <div className="flex items-center gap-2 text-xs">
-                                              {itemData && (
-                                                <button
-                                                  onClick={() =>
-                                                    setSelectedItem(itemData)
-                                                  }
-                                                  className="hover:opacity-80 shrink-0"
-                                                >
-                                                  <img
-                                                    src={
-                                                      itemData.image ||
-                                                      "/placeholder.svg"
+                                {metadata.slots.map((slot) => {
+                                  const posId =
+                                    slot.position_info?.id || slot.id;
+                                  const posName =
+                                    slot.position_info?.label || slot.name;
+                                  return (
+                                    <div
+                                      key={posId}
+                                      className="flex items-center justify-between p-2 bg-background rounded border border-border/50"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-mono text-muted-foreground">
+                                          {posId}
+                                        </span>
+                                        <span className="text-sm font-medium">
+                                          {posName}
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-col items-end gap-1">
+                                        {slot.required_item &&
+                                          (() => {
+                                            const itemData = items.get(
+                                              slot.required_item.id,
+                                            );
+                                            return (
+                                              <div className="flex items-center gap-2 text-xs">
+                                                {itemData && (
+                                                  <button
+                                                    onClick={() =>
+                                                      setSelectedItem(itemData)
                                                     }
-                                                    alt={itemData.name}
-                                                    className="w-6 h-6 rounded"
-                                                  />
-                                                </button>
-                                              )}
-                                              <span className="text-muted-foreground">
-                                                {slot.required_item.name}
-                                              </span>
-                                              {slot.required_item.is_used && (
-                                                <span className="text-red-400 font-bold">
-                                                  (Used)
+                                                    className="hover:opacity-80 shrink-0"
+                                                  >
+                                                    <img
+                                                      src={
+                                                        itemData.image ||
+                                                        "/placeholder.svg"
+                                                      }
+                                                      alt={itemData.name}
+                                                      className="w-6 h-6 rounded"
+                                                    />
+                                                  </button>
+                                                )}
+                                                <span className="text-muted-foreground">
+                                                  {slot.required_item.name}
                                                 </span>
-                                              )}
-                                            </div>
-                                          );
-                                        })()}
-                                      {slot.secondary_item &&
-                                        (() => {
-                                          const itemData = items.get(
-                                            slot.secondary_item.id,
-                                          );
-                                          return (
-                                            <div className="flex items-center gap-2 text-xs">
-                                              {itemData && (
-                                                <button
-                                                  onClick={() =>
-                                                    setSelectedItem(itemData)
-                                                  }
-                                                  className="hover:opacity-80 shrink-0"
-                                                >
-                                                  <img
-                                                    src={
-                                                      itemData.image ||
-                                                      "/placeholder.svg"
+                                                {slot.required_item.is_used && (
+                                                  <span className="text-red-400 font-bold">
+                                                    (Used)
+                                                  </span>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
+                                        {slot.secondary_item &&
+                                          (() => {
+                                            const itemData = items.get(
+                                              slot.secondary_item.id,
+                                            );
+                                            return (
+                                              <div className="flex items-center gap-2 text-xs">
+                                                {itemData && (
+                                                  <button
+                                                    onClick={() =>
+                                                      setSelectedItem(itemData)
                                                     }
-                                                    alt={itemData.name}
-                                                    className="w-6 h-6 rounded"
-                                                  />
-                                                </button>
-                                              )}
-                                              <span className="text-muted-foreground">
-                                                {slot.secondary_item.name}
-                                              </span>
-                                              {slot.secondary_item.is_used && (
-                                                <span className="text-red-400 font-bold">
-                                                  (Used)
+                                                    className="hover:opacity-80 shrink-0"
+                                                  >
+                                                    <img
+                                                      src={
+                                                        itemData.image ||
+                                                        "/placeholder.svg"
+                                                      }
+                                                      alt={itemData.name}
+                                                      className="w-6 h-6 rounded"
+                                                    />
+                                                  </button>
+                                                )}
+                                                <span className="text-muted-foreground">
+                                                  {slot.secondary_item.name}
                                                 </span>
-                                              )}
-                                            </div>
-                                          );
-                                        })()}
+                                                {slot.secondary_item
+                                                  .is_used && (
+                                                  <span className="text-red-400 font-bold">
+                                                    (Used)
+                                                  </span>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}{" "}
                               </div>
                             </div>
                           </div>

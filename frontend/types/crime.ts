@@ -1,78 +1,88 @@
 export interface Member {
-  id: number
-  name: string
-  level: number
+  id: number;
+  name: string;
+  level: number;
   status: {
-    description: string
-    details: string | null
-    state: string
-    color: string
-    until: number | null
-  }
-  position: string
+    description: string;
+    details: string | null;
+    state: string;
+    color: string;
+    until: number | null;
+  };
+  position: string;
   last_action: {
-    status: string
-    relative: string
-    timestamp: number
-  }
-  days_in_faction: number
-  is_in_oc: boolean
+    status: string;
+    relative: string;
+    timestamp: number;
+  };
+  days_in_faction: number;
+  is_in_oc: boolean;
 }
 
 export interface CrimeSlot {
-  position: string
-  position_id: string
+  position: string;
+  position_id?: string;
+  position_info?: {
+    id: string;
+    label: string;
+    number: number;
+  };
   user: {
-    id: number
-    name?: string
-    outcome?: string
-    item_outcome?: { owned_by: string; item_id: number; item_uid: number; outcome: string }
-  } | null
-  checkpoint_pass_rate?: number
+    id: number;
+    name?: string;
+    outcome?: string;
+    item_outcome?: {
+      owned_by: string;
+      item_id: number;
+      item_uid: number;
+      outcome: string;
+    };
+  } | null;
+  checkpoint_pass_rate?: number;
   item_requirement?: {
-    id: number
-    is_reusable: boolean
-    is_available: boolean
-  }
+    id: number;
+    is_reusable: boolean;
+    is_available: boolean;
+  };
 }
 
 export interface CrimeRewards {
-  money: number
-  items: Array<{ id: number; quantity: number }>
-  respect: number
-  scope?: number
+  money: number;
+  items: Array<{ id: number; quantity: number }>;
+  respect: number;
+  scope?: number;
   payout?: {
-    type: string
-    percentage: number
-    paid_by: number
-    paid_at: number
-  }
+    type: string;
+    percentage: number;
+    paid_by: number;
+    paid_at: number;
+  };
 }
 
 export interface Crime {
-  id: number
-  name: string
-  difficulty: number
-  participants: number
-  status: string
-  planned_by: { id: number; name: string }
-  initiated_by: { id: number; name: string } | null
-  slots: CrimeSlot[]
-  pass_rate?: number
-  progress?: number
+  id: number;
+  name: string;
+  difficulty: number;
+  participants: number;
+  status: string;
+  planned_by: { id: number; name: string };
+  initiated_by: { id: number; name: string } | null;
+  slots: CrimeSlot[];
+  pass_rate?: number;
+  progress?: number;
   item_requirement?: {
-    id: number
-    is_reusable: boolean
-    is_available: boolean
-  }
-  created_at?: number
-  planning_at?: number
-  executed_at?: number
-  ready_at?: number
-  expired_at?: number
-  rewards?: CrimeRewards
+    id: number;
+    is_reusable: boolean;
+    is_available: boolean;
+  };
+  created_at?: number;
+  planning_at?: number;
+  executed_at?: number;
+  ready_at?: number;
+  expired_at?: number;
+  rewards?: CrimeRewards;
 }
 
 export interface CrimesResponse {
-  crimes: Record<string, Crime>
+  crimes: Record<string, Crime>;
 }

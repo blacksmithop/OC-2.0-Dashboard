@@ -12,8 +12,13 @@ export interface CrimeMetadata {
   };
   prerequisite: string | null;
   slots: Array<{
-    id: string;
-    name: string;
+    id?: string;
+    name?: string;
+    position_info?: {
+      id: string;
+      label: string;
+      number: number;
+    };
     required_item: {
       id: number;
       name: string;
