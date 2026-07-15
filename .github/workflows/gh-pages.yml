@@ -38,6 +38,9 @@ jobs:
             npm install
           fi
 
+      - name: Test
+        run: npm test
+
       - name: Build
         env:
           NODE_ENV: production
