@@ -1,28 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
-interface Crime {
-  id: number;
-  name: string;
-  difficulty: number;
-  status: string;
-  slots: Array<{
-    position: string;
-    position_id?: string;
-    position_info?: {
-      id: string;
-      label: string;
-      number: number;
-    };
-    user: { id: number; name?: string } | null;
-  }>;
-}
-
-interface Member {
-  id: number;
-  name: string;
-}
+import type { Crime, Member } from "@/types/crime";
 
 interface CrimeAnalysisProps {
   crimes: Crime[];

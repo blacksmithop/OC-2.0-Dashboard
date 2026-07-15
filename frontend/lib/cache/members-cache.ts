@@ -1,6 +1,15 @@
 import { db, STORES } from "../db/indexeddb"
 import { logError } from "@/lib/logging/error-logger"
-import type { FactionMember } from "./members-cache"
+import type { Member } from "@/types/crime"
+
+/**
+ * Subset of a faction member cached from the Torn API v2 members endpoint.
+ * Mirrors the fields persisted in {@link fetchAndCacheMembers}.
+ */
+export type FactionMember = Pick<
+  Member,
+  "id" | "name" | "status" | "position" | "level" | "days_in_faction" | "last_action"
+>
 
 const MEMBERS_CACHE_KEY = "factionMembersCache"
 const MEMBERS_CACHE_EXPIRY_KEY = "factionMembersCacheExpiry"

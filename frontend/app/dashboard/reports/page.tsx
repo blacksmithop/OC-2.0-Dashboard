@@ -160,7 +160,7 @@ export default function CrimeReportsPage() {
       };
     }
 
-    const timestamps = crimes.map((c) => c.created_at * 1000);
+    const timestamps = crimes.map((c) => (c.created_at ?? 0) * 1000);
     const calculatedMinDate = new Date(Math.min(...timestamps));
     const calculatedMaxDate = new Date(Math.max(...timestamps));
 
@@ -194,7 +194,7 @@ export default function CrimeReportsPage() {
     }
 
     return allCrimes.filter((crime) => {
-      const crimeDate = new Date(crime.created_at * 1000);
+      const crimeDate = new Date((crime.created_at ?? 0) * 1000);
       return (
         crimeDate >= customDateRange.start && crimeDate <= customDateRange.end
       );
@@ -456,7 +456,7 @@ export default function CrimeReportsPage() {
       );
 
       if (firstData.crimes) {
-        const crimesArray = Object.values(firstData.crimes);
+        const crimesArray = Object.values(firstData.crimes) as Crime[];
         allCrimes.push(...crimesArray);
         setHistoricalCrimes([...allCrimes]);
         setCrimes([...allCrimes]);
@@ -469,9 +469,9 @@ export default function CrimeReportsPage() {
 
         if (crimesArray.length > 0) {
           const oldestCrime = crimesArray.reduce((oldest, crime) =>
-            crime.executed_at < oldest.executed_at ? crime : oldest,
+            (crime.executed_at ?? 0) < (oldest.executed_at ?? 0) ? crime : oldest,
           );
-          oldestTimestamp = oldestCrime.executed_at;
+          oldestTimestamp = oldestCrime.executed_at ?? null;
           lastOldestCrimeId = oldestCrime.id;
         } else {
           hasMoreData = false;
@@ -510,10 +510,10 @@ export default function CrimeReportsPage() {
         }
 
         if (data.crimes && Object.keys(data.crimes).length > 0) {
-          const crimesArray = Object.values(data.crimes);
+          const crimesArray = Object.values(data.crimes) as Crime[];
 
           const newOldestCrime = crimesArray.reduce((oldest, crime) =>
-            crime.executed_at < oldest.executed_at ? crime : oldest,
+            (crime.executed_at ?? 0) < (oldest.executed_at ?? 0) ? crime : oldest,
           );
 
           if (newOldestCrime.id === lastOldestCrimeId) {
@@ -526,7 +526,7 @@ export default function CrimeReportsPage() {
           setCrimes([...allCrimes]);
           setTotalCrimes(allCrimes.length);
 
-          oldestTimestamp = newOldestCrime.executed_at;
+          oldestTimestamp = newOldestCrime.executed_at ?? null;
           lastOldestCrimeId = newOldestCrime.id;
         } else {
           hasMoreData = false;
@@ -838,7 +838,7 @@ export default function CrimeReportsPage() {
                 const isExpanded = expandedCrimes.has(crime.name);
                 const metadata = CRIME_METADATA[crime.name];
                 const pieData = [];
-                const colors = [];
+                const colors: string[] = [];
 
                 if (crime.successful > 0) {
                   pieData.push({

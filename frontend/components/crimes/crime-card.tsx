@@ -1,7 +1,7 @@
 "use client"
 
 import type { Crime, Member } from "@/types/crime"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { RefreshCw, Microscope, Sparkles } from "lucide-react"
 import CrimeSlot from "./crime-slot"
 import CrimeRewards from "./crime-rewards"
@@ -53,11 +53,15 @@ export default function CrimeCard({
 }: CrimeCardProps) {
   const [prediction, setPrediction] = useState<SuccessPrediction | null>(null)
   const [isPredicting, setIsPredicting] = useState(false)
+  const [canReloadCrimes, setCanReloadCrimes] = useState(false)
+
+  useEffect(() => {
+    canReloadIndividualCrimes().then(setCanReloadCrimes)
+  }, [])
 
   const crimeAnchorId = `crime-${crime.id}`
   const filledSlots = crime.slots.filter((slot) => slot.user && slot.user.id).length
   const totalSlots = crime.slots.length
-  const canReloadCrimes = canReloadIndividualCrimes()
   const canReloadThisCrime = !["Successful", "Failed", "Expired"].includes(crime.status)
   const isPlanning = crime.status === "Planning"
   const simulatorUrl = getSimulatorUrl(crime.name, crime.slots, isPlanning)

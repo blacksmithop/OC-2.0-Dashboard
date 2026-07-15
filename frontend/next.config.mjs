@@ -4,7 +4,7 @@ const nextConfig = {
   trailingSlash: true,
   basePath: "",
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,

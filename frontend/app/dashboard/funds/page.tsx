@@ -27,7 +27,7 @@ export default function FundsPage() {
   const [maxItems, setMaxItems] = useState(1000)
   const [showSettings, setShowSettings] = useState(false)
   const [tempMaxItems, setTempMaxItems] = useState(1000)
-  const [progress, setProgress] = useState({ current: 0, total: 0 })
+  const [progress, setProgress] = useState({ current: 0, max: 0 })
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set())
   const [showConfigModal, setShowConfigModal] = useState(false)
 
@@ -123,7 +123,7 @@ export default function FundsPage() {
         batch.sort((a, b) => b.timestamp - a.timestamp)
         allFunds.push(...batch)
         setFunds([...allFunds])
-        setProgress({ current: allFunds.length, total: maxItems })
+        setProgress({ current: allFunds.length, max: maxItems })
 
         toast({
           title: "Fetching",
@@ -160,7 +160,7 @@ export default function FundsPage() {
       })
     } finally {
       setIsFetching(false)
-      setProgress({ current: 0, total: 0 })
+      setProgress({ current: 0, max: 0 })
     }
   }
 

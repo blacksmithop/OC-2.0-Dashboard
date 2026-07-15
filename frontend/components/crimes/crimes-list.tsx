@@ -87,8 +87,9 @@ export default function CrimesList({
 
   const hasOverseasMembers = (crime: Crime) => {
     return crime.slots.some((slot) => {
-      if (!slot.user?.id) return false
-      const member = members.find((m) => m.id === slot.user.id)
+      const userId = slot.user?.id
+      if (!userId) return false
+      const member = members.find((m) => m.id === userId)
       const status = member?.status?.state
       return status === "Traveling" || status === "Abroad"
     })
