@@ -19,17 +19,7 @@ import { DashboardFooter } from "@/components/dashboard/dashboard-footer"
 import { logError } from "@/lib/logging/error-logger"
 import { apiKeyManager } from "@/lib/auth/api-key-manager"
 import { db, STORES } from "@/lib/db/indexeddb"
-
-interface Crime {
-  id: number
-  status: string
-  rewards?: {
-    money: number
-    items: Array<{ id: number; quantity: number }>
-    respect: number
-  }
-  executed_at: number
-}
+import type { Crime } from "@/types/crime"
 
 export default function Dashboard() {
   const router = useRouter()
@@ -47,7 +37,6 @@ export default function Dashboard() {
   const [hasArmoryScope, setHasArmoryScope] = useState(true)
   const [hasFundsScope, setHasFundsScope] = useState(true)
   const [hasMedicalScope, setHasMedicalScope] = useState(true)
-  const [hasTornStatsApiKey, setHasTornStatsApiKey] = useState(false) // Declare setHasTornStatsApiKey
 
   const allCrimes = useMemo(() => {
     const crimeMap = new Map<number, Crime>()
@@ -64,9 +53,9 @@ export default function Dashboard() {
         return
       }
 
-      setHasArmoryScope(canAccessArmory())
-      setHasFundsScope(canAccessFunds())
-      setHasMedicalScope(canAccessMedical())
+      setHasArmoryScope(await canAccessArmory())
+      setHasFundsScope(await canAccessFunds())
+      setHasMedicalScope(await canAccessMedical())
 
       const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
       if (cached) {
@@ -117,7 +106,7 @@ export default function Dashboard() {
 
       const crimesData = await crimesRes.json()
       validateApiResponse(crimesData, "/faction/crimes")
-      setCrimes(Object.values(crimesData.crimes || {}))
+      setCrimes(Object.values(crimesData.crimes || {}) as Crime[])
 
       if (!refreshing) {
         toast({
@@ -165,15 +154,15 @@ export default function Dashboard() {
       const firstData = await crimeApiCache.fetchWithCache(firstUrl, apiKey, true)
 
       if (firstData.crimes) {
-        const crimesArray = Object.values(firstData.crimes)
+        const crimesArray = Object.values(firstData.crimes) as Crime[]
         allCrimes.push(...crimesArray)
         setHistoricalCrimes([...allCrimes])
 
         if (crimesArray.length > 0) {
-          const oldestCrime = crimesArray.reduce((oldest: Crime, crime: Crime) =>
-            crime.executed_at < oldest.executed_at ? crime : oldest,
+          const oldestCrime = crimesArray.reduce((oldest, crime) =>
+            (crime.executed_at ?? 0) < (oldest.executed_at ?? 0) ? crime : oldest,
           )
-          oldestTimestamp = oldestCrime.executed_at
+          oldestTimestamp = oldestCrime.executed_at ?? null
           lastOldestCrimeId = oldestCrime.id
         } else {
           hasMoreData = false
@@ -207,10 +196,10 @@ export default function Dashboard() {
         }
 
         if (data.crimes && Object.keys(data.crimes).length > 0) {
-          const crimesArray = Object.values(data.crimes)
+          const crimesArray = Object.values(data.crimes) as Crime[]
 
-          const newOldestCrime = crimesArray.reduce((oldest: Crime, crime: Crime) =>
-            crime.executed_at < oldest.executed_at ? crime : oldest,
+          const newOldestCrime = crimesArray.reduce((oldest, crime) =>
+            (crime.executed_at ?? 0) < (oldest.executed_at ?? 0) ? crime : oldest,
           )
 
           if (newOldestCrime.id === lastOldestCrimeId) {
@@ -220,7 +209,7 @@ export default function Dashboard() {
 
           allCrimes.push(...crimesArray)
           setHistoricalCrimes([...allCrimes])
-          oldestTimestamp = newOldestCrime.executed_at
+          oldestTimestamp = newOldestCrime.executed_at ?? null
           lastOldestCrimeId = newOldestCrime.id
 
           setHistoricalProgress({ current: allCrimes.length, total: allCrimes.length })
@@ -309,7 +298,6 @@ export default function Dashboard() {
             hasArmoryScope={hasArmoryScope}
             hasFundsScope={hasFundsScope}
             hasMedicalScope={hasMedicalScope}
-            hasTornStatsApiKey={hasTornStatsApiKey}
           />
         </div>
       </main>

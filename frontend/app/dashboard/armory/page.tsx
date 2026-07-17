@@ -41,7 +41,7 @@ export default function ArmoryPage() {
 
   const [armoryNews, setArmoryNews] = useState<ArmoryNewsItem[]>([])
   const [items, setItems] = useState<Map<number, TornItem>>(new Map())
-  const [members, setMembers] = useState<FactionMember[]>([])
+  const [members, setMembers] = useState<{ id: number; name: string }[]>([])
   const [isFetching, setIsFetching] = useState(false)
   const [fetchProgress, setFetchProgress] = useState<FetchProgress>({ current: 0, max: 0, requestNumber: 0 })
   const [currentPage, setCurrentPage] = useState(1)
@@ -297,7 +297,6 @@ export default function ArmoryPage() {
                 setItemsPerPage(count)
                 setCurrentPage(1)
               }}
-              actions={actions}
               selectedAction={selectedAction}
               onActionChange={(action) => {
                 setSelectedAction(action)

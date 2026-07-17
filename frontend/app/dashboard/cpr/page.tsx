@@ -1445,11 +1445,12 @@ export default function CPRDashboard() {
                                                 {cpr}%
                                                 {entry?.source ===
                                                   "tornstats" && (
-                                                  <ExternalLink
-                                                    size={9}
-                                                    className="ml-1 opacity-50"
+                                                  <span
+                                                    className="ml-1 inline-flex opacity-50"
                                                     title="Source: TornStats"
-                                                  />
+                                                  >
+                                                    <ExternalLink size={9} />
+                                                  </span>
                                                 )}
                                               </span>
                                               <button

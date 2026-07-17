@@ -2,17 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { VictoryPie } from "victory"
-
-interface Crime {
-  id: number
-  name: string
-  status: string
-  rewards?: {
-    money: number
-    items: Array<{ id: number; quantity: number }>
-    respect: number
-  }
-}
+import type { Crime } from "@/types/crime"
 
 interface CrimeSuccessChartsProps {
   crimes: Crime[]

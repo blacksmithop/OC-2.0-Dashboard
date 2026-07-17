@@ -8,29 +8,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import ItemModal from "./item-modal";
-
-interface Crime {
-  id: number;
-  name: string;
-  status: string;
-  rewards?: {
-    money: number;
-    items: Array<{ id: number; quantity: number }>;
-    respect: number;
-  };
-  slots?: Array<{
-    position: string;
-    user?: {
-      id: number;
-      item_outcome?: { outcome: string };
-    };
-    item_requirement?: {
-      id: number;
-      is_available: boolean;
-      is_reusable: boolean;
-    };
-  }>;
-}
+import type { Crime } from "@/types/crime";
 
 interface Member {
   id: number;

@@ -14,7 +14,7 @@ interface CrimeCostProps {
       item_outcome?: {
         outcome: string
       }
-    }
+    } | null
   }>
   items: Map<number, any>
   onItemClick: (item: any) => void

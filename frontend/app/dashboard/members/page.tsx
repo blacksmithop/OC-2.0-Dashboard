@@ -79,12 +79,16 @@ export default function MembersPage() {
       return
     }
 
-    const hasBalance = canAccessBalance()
-    setHasBalanceScope(hasBalance)
+    const init = async () => {
+      const hasBalance = await canAccessBalance()
+      setHasBalanceScope(hasBalance)
 
-    loadHistoricalCrimes()
+      loadHistoricalCrimes()
 
-    fetchData(apiKey, hasBalance)
+      fetchData(apiKey, hasBalance)
+    }
+
+    init()
   }, [router])
 
   const fetchData = async (apiKey: string, hasBalance?: boolean) => {
@@ -150,7 +154,7 @@ export default function MembersPage() {
       const crimesData = await crimesRes.json()
       validateApiResponse(crimesData, "/faction/crimes")
 
-      const currentCrimes = Object.values(crimesData.crimes || {})
+      const currentCrimes = Object.values(crimesData.crimes || {}) as Crime[]
       const crimeMap = new Map<number, Crime>()
 
       historicalCrimes.forEach((crime) => {

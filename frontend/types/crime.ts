@@ -16,7 +16,8 @@ export interface Member {
     timestamp: number;
   };
   days_in_faction: number;
-  is_in_oc: boolean;
+  /** Derived from crime data; absent on members loaded straight from the cache. */
+  is_in_oc?: boolean;
 }
 
 export interface CrimeSlot {
@@ -31,6 +32,7 @@ export interface CrimeSlot {
     id: number;
     name?: string;
     outcome?: string;
+    progress?: number;
     item_outcome?: {
       owned_by: string;
       item_id: number;
@@ -70,6 +72,10 @@ export interface Crime {
   slots: CrimeSlot[];
   pass_rate?: number;
   progress?: number;
+  /** Numeric status code returned by the Torn API for completed crimes. */
+  result?: number;
+  /** Total planning/material cost for the crime, when available. */
+  cost?: number;
   item_requirement?: {
     id: number;
     is_reusable: boolean;
@@ -82,6 +88,10 @@ export interface Crime {
   expired_at?: number;
   rewards?: CrimeRewards;
 }
+
+// Convenience aliases used by presentation components.
+export type Slot = CrimeSlot;
+export type Rewards = CrimeRewards;
 
 export interface CrimesResponse {
   crimes: Record<string, Crime>;

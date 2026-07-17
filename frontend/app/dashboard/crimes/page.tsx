@@ -286,7 +286,7 @@ export default function CrimesPage() {
       const crimesData = await crimesRes.json()
       validateApiResponse(crimesData, "/faction/crimes")
 
-      const currentCrimes = Object.values(crimesData.crimes || {})
+      const currentCrimes = Object.values(crimesData.crimes || {}) as Crime[]
 
       const cached = await db.get<Crime[]>(STORES.CACHE, "factionHistoricalCrimes")
       let loadedHistoricalCrimes: Crime[] = []
@@ -323,7 +323,7 @@ export default function CrimesPage() {
         updateCPRDataInBackground(allCrimes, memberNamesMap)
       }
 
-      const timestamps = allCrimes.map((crime) => crime.created_at * 1000)
+      const timestamps = allCrimes.map((crime) => (crime.created_at ?? 0) * 1000)
       const calculatedMinDate = new Date(Math.min(...timestamps))
       const calculatedMaxDate = new Date(Math.max(...timestamps))
 
@@ -336,7 +336,7 @@ export default function CrimesPage() {
         maxTimestamp: Math.max(...timestamps),
         minDate: calculatedMinDate.toISOString(),
         maxDate: calculatedMaxDate.toISOString(),
-        latestCrimeId: allCrimes.find((c) => c.created_at * 1000 === Math.max(...timestamps))?.id,
+        latestCrimeId: allCrimes.find((c) => (c.created_at ?? 0) * 1000 === Math.max(...timestamps))?.id,
       })
 
       if (!refreshing && !isBackgroundRefresh) {
@@ -488,8 +488,9 @@ export default function CrimesPage() {
       const searchLower = usernameFilter.toLowerCase()
       filtered = filtered.filter((crime) =>
         crime.slots.some((slot) => {
-          if (!slot.user?.id) return false
-          const member = members.find((m) => m.id === slot.user.id)
+          const slotUserId = slot.user?.id
+          if (!slotUserId) return false
+          const member = members.find((m) => m.id === slotUserId)
           return member?.name.toLowerCase().includes(searchLower)
         }),
       )
@@ -524,7 +525,7 @@ export default function CrimesPage() {
     })
 
     return filteredCrimes.filter((crime) => {
-      const crimeDate = new Date(crime.created_at * 1000)
+      const crimeDate = new Date((crime.created_at ?? 0) * 1000)
       const isInRange = crimeDate >= customDateRange.start && crimeDate <= customDateRange.end
 
       return isInRange
@@ -533,7 +534,7 @@ export default function CrimesPage() {
 
   useEffect(() => {
     // Only set default date range if no saved range exists
-    if (crimes.length > 0 && !savedDateRange) {
+    if (crimes.length > 0 && !savedDateRange && minDate && maxDate) {
       const start = new Date(minDate)
       const end = new Date(maxDate)
       start.setHours(0, 0, 0, 0)

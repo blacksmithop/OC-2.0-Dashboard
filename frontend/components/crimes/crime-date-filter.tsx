@@ -9,10 +9,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 
 interface CrimeDateFilterProps {
-  minDate: Date
-  maxDate: Date
-  startDate: Date
-  endDate: Date
+  minDate: Date | null
+  maxDate: Date | null
+  startDate: Date | null
+  endDate: Date | null
   onDateRangeChange: (start: Date, end: Date) => void
   onClear?: () => void
   isFiltered?: boolean
@@ -24,10 +24,10 @@ export function CrimeDateFilter({ minDate, maxDate, startDate, endDate, onDateRa
   const [startMonth, setStartMonth] = useState<Date | undefined>()
   const [endMonth, setEndMonth] = useState<Date | undefined>()
 
-  const safeStartDate = isValid(startDate) ? startDate : new Date()
-  const safeEndDate = isValid(endDate) ? endDate : new Date()
-  const safeMinDate = isValid(minDate) ? minDate : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const safeMaxDate = isValid(maxDate) ? maxDate : new Date()
+  const safeStartDate = startDate && isValid(startDate) ? startDate : new Date()
+  const safeEndDate = endDate && isValid(endDate) ? endDate : new Date()
+  const safeMinDate = minDate && isValid(minDate) ? minDate : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const safeMaxDate = maxDate && isValid(maxDate) ? maxDate : new Date()
 
   const handleStartDateSelect = (date: Date | undefined) => {
     if (date && isValid(date)) {

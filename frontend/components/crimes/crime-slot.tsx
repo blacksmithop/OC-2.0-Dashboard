@@ -91,7 +91,9 @@ export default function CrimeSlot({
     }
   }
 
-  const memberData = slot.user?.id ? members.find((m) => m.id === slot.user.id) : null
+  const slotUserId = slot.user?.id
+  const itemReq = slot.item_requirement
+  const memberData = slotUserId ? members.find((m) => m.id === slotUserId) : null
   const isTraveling = memberData?.status?.state === "Traveling" && ["Planning", "Recruiting"].includes(crimeStatus)
   const isAbroad = memberData?.status?.state === "Abroad" && ["Planning", "Recruiting"].includes(crimeStatus)
   const travelDescription = isTraveling || isAbroad ? memberData?.status?.description : null
@@ -311,21 +313,21 @@ export default function CrimeSlot({
             )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {slot.item_requirement && (
+            {itemReq && (
               <>
-                {items.has(slot.item_requirement.id) && (
-                  <button onClick={() => onItemClick(items.get(slot.item_requirement.id))} className="hover:opacity-80">
+                {items.has(itemReq.id) && (
+                  <button onClick={() => onItemClick(items.get(itemReq.id))} className="hover:opacity-80">
                     <img
-                      src={items.get(slot.item_requirement.id)?.image || "/placeholder.svg"}
-                      alt={items.get(slot.item_requirement.id)?.name}
+                      src={items.get(itemReq.id)?.image || "/placeholder.svg"}
+                      alt={items.get(itemReq.id)?.name}
                       className="w-5 h-5 rounded"
                     />
                   </button>
                 )}
                 <span
-                  className={`px-1.5 py-0.5 rounded text-xs font-bold border ${slot.item_requirement.is_available ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-red-500/20 text-red-400 border-red-500/40"}`}
+                  className={`px-1.5 py-0.5 rounded text-xs font-bold border ${itemReq.is_available ? "bg-green-500/20 text-green-400 border-green-500/40" : "bg-red-500/20 text-red-400 border-red-500/40"}`}
                 >
-                  {slot.item_requirement.is_available ? "✓" : "✗"}
+                  {itemReq.is_available ? "✓" : "✗"}
                 </span>
               </>
             )}

@@ -108,7 +108,7 @@ export async function handleApiError(
       const requiredScopes = getRequiredScopes()
       const optionalScopes = getOptionalScopes()
 
-      const selectedScopes = getSelectedScopes()
+      const selectedScopes = await getSelectedScopes()
       const apiKeyUrl = buildApiKeyUrl(selectedScopes)
 
       console.error(`[v0] API Access Error (Code 16):`, {
@@ -168,7 +168,7 @@ export async function handleApiError(
 
     if (errorData.error?.code === 2) {
       const errorMessage = `API key does not have access to "${scope}" scope`
-      const selectedScopes = getSelectedScopes()
+      const selectedScopes = await getSelectedScopes()
       const apiKeyUrl = buildApiKeyUrl(selectedScopes)
 
       console.error(`[v0] API Access Error (Code 2):`, {

@@ -46,6 +46,7 @@ export interface GroupedLog {
 export interface FetchProgress {
   current: number
   max: number
+  requestNumber?: number
 }
 
 export interface ArmoryApiResponse {
